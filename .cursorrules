@@ -8,6 +8,9 @@
 **Database:** PostgreSQL 17.6.1 @ db.qtjnbtvtuivzikeiufua.supabase.co
 **Region:** EU Central (Frankfurt)
 
+### Terminology
+- **"Village" refers to "Kibbutz" (קיבוץ)**: In this project context, when we use the term "village" in English code, variables, or documentation, it refers to a kibbutz (קיבוץ) in Hebrew. All user-facing Hebrew text should use "קיבוץ" (kibbutz), not "יישוב" (yishuv/settlement).
+
 ## Primary Language & Localization
 
 ### Hebrew as Primary Language (RTL)
@@ -393,6 +396,7 @@ npm run build        # Build for production
 5. **Security:** Enable RLS before production
 6. **Type Safety:** Use TypeScript everywhere with proper types
 7. **n8n Headers:** Always use separate `N8N_AUTH_HEADER_NAME` and `N8N_AUTH_HEADER_VALUE` env vars, never combine them
+8. **Terminology:** "Village" in code/docs refers to "Kibbutz" (קיבוץ) - use "קיבוץ" in Hebrew UI text, not "יישוב"
 
 ---
 
