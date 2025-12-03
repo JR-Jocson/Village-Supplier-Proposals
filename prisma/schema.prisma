@@ -10,24 +10,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Example model - replace with your own models
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  proposals Proposal[]
+model Project {
+  id             String       @id @default(uuid())
+  kibbutzName    String       // Name of the kibbutz/settlement
+  submitterName  String       // Name of the person who submitted
+  submitterEmail String       // Email of the submitter
+  submitterPhone String       // Phone number of the submitter
+  invoicePrice   Float?       // Detected price from invoice
+  status         String       @default("draft") // draft, submitted, reviewed, etc.
+  files          ProjectFile[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
-model Proposal {
+model ProjectFile {
   id          String   @id @default(uuid())
-  title       String
-  description String?
-  status      String   @default("draft")
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileName    String   // Original file name
+  filePath    String   // Path in Supabase Storage bucket
+  fileType    String   // invoice, proposal, tender
+  fileSize    Int      // File size in bytes
+  mimeType    String   // MIME type (e.g., application/pdf)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
 }
 

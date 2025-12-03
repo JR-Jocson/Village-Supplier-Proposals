@@ -19,6 +19,17 @@ const translations = {
     requirement1: 'הצעת מחיר אחת נדרשת עבור סכומים מתחת ל-5,500₪',
     requirement2: 'שתי הצעות מחיר נדרשות עבור סכומים מתחת ל-159,000₪',
     requirement3: '4 הצעות מחיר ומסמך מכרז נדרשים עבור סכומים מעל 159,000₪',
+    submitterInfo: 'פרטי השולח',
+    submitterName: 'שם השולח',
+    submitterNamePlaceholder: 'הזן את שם השולח',
+    submitterEmail: 'אימייל השולח',
+    submitterEmailPlaceholder: 'הזן את כתובת האימייל',
+    submitterPhone: 'טלפון השולח',
+    submitterPhonePlaceholder: 'הזן את מספר הטלפון',
+    kibbutzName: 'שם הקיבוץ',
+    requiredField: 'שדה חובה',
+    invalidEmail: 'כתובת אימייל לא תקינה',
+    invalidPhone: 'מספר טלפון לא תקין',
   },
   en: {
     title: 'Upload Price Proposals',
@@ -35,6 +46,17 @@ const translations = {
     requirement1: 'One price proposal required for amounts below ₪5,500',
     requirement2: 'Two price proposals required for amounts below ₪159,000',
     requirement3: '4 price proposals and tender document required for amounts above ₪159,000',
+    submitterInfo: 'Submitter Information',
+    submitterName: 'Submitter Name',
+    submitterNamePlaceholder: 'Enter submitter name',
+    submitterEmail: 'Submitter Email',
+    submitterEmailPlaceholder: 'Enter email address',
+    submitterPhone: 'Submitter Phone',
+    submitterPhonePlaceholder: 'Enter phone number',
+    kibbutzName: 'Kibbutz Name',
+    requiredField: 'Required field',
+    invalidEmail: 'Invalid email address',
+    invalidPhone: 'Invalid phone number',
   },
 };
 
@@ -65,6 +87,16 @@ export default function ProposalUpload({ invoicePrice, invoiceFile, selectedVill
     Array(requirements.proposals).fill(null)
   );
   const [tenderFile, setTenderFile] = useState<File | null>(null);
+  const [submitterName, setSubmitterName] = useState<string>('');
+  const [submitterEmail, setSubmitterEmail] = useState<string>('');
+  const [submitterPhone, setSubmitterPhone] = useState<string>('');
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleProposalUpload = (index: number, file: File) => {
     const newFiles = [...proposalFiles];
@@ -76,25 +108,100 @@ export default function ProposalUpload({ invoicePrice, invoiceFile, selectedVill
     setTenderFile(file);
   };
 
+  const validateForm = () => {
+    const errors: { name?: string; email?: string; phone?: string } = {};
+    
+    if (!submitterName.trim()) {
+      errors.name = t.requiredField;
+    }
+    
+    if (!submitterEmail.trim()) {
+      errors.email = t.requiredField;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitterEmail)) {
+      errors.email = t.invalidEmail;
+    }
+    
+    if (!submitterPhone.trim()) {
+      errors.phone = t.requiredField;
+    } else if (!/^[\d\s\-\+\(\)]+$/.test(submitterPhone)) {
+      errors.phone = t.invalidPhone;
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const allFilesUploaded = () => {
     const proposalsUploaded = proposalFiles.every(file => file !== null);
     const tenderUploaded = !requirements.tender || tenderFile !== null;
     return proposalsUploaded && tenderUploaded;
   };
 
+  const isFormValid = () => {
+    return allFilesUploaded() && validateForm();
+  };
+
   const handleSubmit = async () => {
-    if (!allFilesUploaded()) return;
+    if (!allFilesUploaded() || !validateForm()) return;
 
-    // TODO: Implement submission logic
-    console.log('Submitting:', {
-      village: selectedVillage,
-      invoiceFile,
-      proposalFiles,
-      tenderFile,
-      invoicePrice,
-    });
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    alert(language === 'he' ? 'ההצעה נשלחה בהצלחה!' : 'Proposal submitted successfully!');
+    try {
+      // Create FormData with all project information and files
+      const formData = new FormData();
+      formData.append('kibbutzName', selectedVillage);
+      formData.append('submitterName', submitterName);
+      formData.append('submitterEmail', submitterEmail);
+      formData.append('submitterPhone', submitterPhone);
+      if (invoicePrice !== null) {
+        formData.append('invoicePrice', invoicePrice.toString());
+      }
+
+      // Add invoice file
+      if (invoiceFile) {
+        formData.append('invoiceFile', invoiceFile);
+      }
+
+      // Add proposal files
+      proposalFiles.forEach((file, index) => {
+        if (file) {
+          formData.append(`proposalFile_${index}`, file);
+        }
+      });
+
+      // Add tender file if exists
+      if (tenderFile) {
+        formData.append('tenderFile', tenderFile);
+      }
+
+      // Submit to API
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit project');
+      }
+
+      const result = await response.json();
+      
+      // Success - show message and reset form
+      alert(language === 'he' ? 'ההצעה נשלחה בהצלחה!' : 'Proposal submitted successfully!');
+      onReset();
+      
+    } catch (error) {
+      console.error('Error submitting project:', error);
+      setSubmitError(
+        error instanceof Error 
+          ? error.message 
+          : (language === 'he' ? 'שגיאה בשליחת ההצעה' : 'Error submitting proposal')
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -121,6 +228,106 @@ export default function ProposalUpload({ invoicePrice, invoiceFile, selectedVill
 
       {/* Upload Areas */}
       <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 space-y-6">
+        {/* Submitter Information Form */}
+        <div className="border-b border-gray-200 pb-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            {t.submitterInfo}
+          </h2>
+          
+          <div className="space-y-4">
+            {/* Kibbutz Name (read-only, already selected) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                {t.kibbutzName}
+              </label>
+              <div className="px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-700">
+                {selectedVillage}
+              </div>
+            </div>
+
+            {/* Submitter Name */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                {t.submitterName} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={submitterName}
+                onChange={(e) => {
+                  setSubmitterName(e.target.value);
+                  if (formErrors.name) {
+                    setFormErrors({ ...formErrors, name: undefined });
+                  }
+                }}
+                placeholder={t.submitterNamePlaceholder}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+                  formErrors.name
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:border-gray-900'
+                }`}
+                dir={language === 'he' ? 'rtl' : 'ltr'}
+              />
+              {formErrors.name && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+              )}
+            </div>
+
+            {/* Submitter Email */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                {t.submitterEmail} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={submitterEmail}
+                onChange={(e) => {
+                  setSubmitterEmail(e.target.value);
+                  if (formErrors.email) {
+                    setFormErrors({ ...formErrors, email: undefined });
+                  }
+                }}
+                placeholder={t.submitterEmailPlaceholder}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+                  formErrors.email
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:border-gray-900'
+                }`}
+                dir="ltr"
+              />
+              {formErrors.email && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+              )}
+            </div>
+
+            {/* Submitter Phone */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                {t.submitterPhone} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={submitterPhone}
+                onChange={(e) => {
+                  setSubmitterPhone(e.target.value);
+                  if (formErrors.phone) {
+                    setFormErrors({ ...formErrors, phone: undefined });
+                  }
+                }}
+                placeholder={t.submitterPhonePlaceholder}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+                  formErrors.phone
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:border-gray-900'
+                }`}
+                dir="ltr"
+              />
+              {formErrors.phone && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.phone}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Price Proposals */}
         {proposalFiles.map((file, index) => (
           <FileUploadSlot
@@ -145,20 +352,31 @@ export default function ProposalUpload({ invoicePrice, invoiceFile, selectedVill
           />
         )}
 
+        {/* Error Message */}
+        {submitError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-sm text-red-600">{submitError}</p>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 pt-6">
           <button
             onClick={onReset}
-            className="flex-1 px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-full font-semibold text-lg hover:bg-gray-50 transition-all duration-200"
+            disabled={isSubmitting}
+            className="flex-1 px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-full font-semibold text-lg hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t.startOver}
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!allFilesUploaded()}
+            disabled={!allFilesUploaded() || !submitterName.trim() || !submitterEmail.trim() || !submitterPhone.trim() || isSubmitting}
             className="flex-1 px-8 py-4 bg-gray-900 text-white rounded-full font-semibold text-lg hover:bg-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg disabled:hover:bg-gray-900"
           >
-            {t.submit}
+            {isSubmitting 
+              ? (language === 'he' ? 'שולח...' : 'Submitting...')
+              : t.submit
+            }
           </button>
         </div>
       </div>

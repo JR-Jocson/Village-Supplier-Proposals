@@ -3,6 +3,9 @@
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+# Optional: Service role key for server-side operations (get from Supabase Dashboard > Settings > API > service_role key)
+# If not provided, the anon key will be used for server-side operations
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Database URL for Prisma (from Supabase)
 # Format: postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
