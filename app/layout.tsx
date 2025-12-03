@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "הצעות פרויקטים כפריים | Village Proposals",
-  description: "פלטפורמה להעלאת והגשת הצעות פרויקטים כפריים לרשויות מקומיות",
+  title: "הצעות פרויקטים לקיבוצים | Village Proposals",
+  description: "פלטפורמה להעלאת והגשת הצעות פרויקטים לקיבוצים לרשויות מקומיות",
 };
 
 export default function RootLayout({
