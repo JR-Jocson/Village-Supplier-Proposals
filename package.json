@@ -1,0 +1,50 @@
+{
+  "name": "village-supplier-proposals",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Village Supplier Proposals - Next.js with Tailwind CSS, Supabase, and Prisma",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "@supabase/supabase-js": "^2.49.2",
+    "dotenv": "^17.2.3",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.0.6",
+    "postcss": "^8.4.49",
+    "prisma": "^6.1.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JR-Jocson/Village-Supplier-Proposals.git"
+  },
+  "keywords": [
+    "nextjs",
+    "tailwindcss",
+    "supabase",
+    "prisma",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JR-Jocson/Village-Supplier-Proposals/issues"
+  },
+  "homepage": "https://github.com/JR-Jocson/Village-Supplier-Proposals#readme"
+}
