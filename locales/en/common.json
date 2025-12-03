@@ -1,0 +1,98 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "howItWorks": "How It Works",
+    "about": "About",
+    "contact": "Contact",
+    "login": "Login",
+    "signup": "Sign Up"
+  },
+  "hero": {
+    "title": "Village Project Proposal Management System",
+    "subtitle": "Digital platform for managing and submitting village project proposals to local municipalities",
+    "description": "The perfect solution for villages to submit structured project proposals, track their progress, and receive quick approval from local authorities",
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "viewDemo": "View Demo"
+  },
+  "features": {
+    "title": "Why Choose Our System?",
+    "subtitle": "Everything you need for efficient and transparent project proposal management",
+    "easySubmission": {
+      "title": "Easy & Quick Submission",
+      "description": "Simple and user-friendly interface for submitting project proposals with all required documents and details"
+    },
+    "tracking": {
+      "title": "Real-Time Tracking",
+      "description": "Track your proposal status at every stage - from submission to final approval"
+    },
+    "verification": {
+      "title": "Quick Verification",
+      "description": "Streamlined verification process that allows authorities to review and approve proposals quickly and accurately"
+    },
+    "documentation": {
+      "title": "Document Management",
+      "description": "Secure storage of all project-related documents and files in one centralized location"
+    },
+    "collaboration": {
+      "title": "Collaboration",
+      "description": "Direct communication between villages and local authorities for clarifications and updates"
+    },
+    "reports": {
+      "title": "Reports & Analytics",
+      "description": "Track statistics, progress reports, and analyze trends of project proposals"
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works?",
+    "subtitle": "Simple three-step process",
+    "step1": {
+      "title": "Submit Project Proposal",
+      "description": "Fill in project details, upload required documents, and send the proposal to the local municipality"
+    },
+    "step2": {
+      "title": "Verification Process",
+      "description": "The local authority reviews the proposal, requests clarifications if needed, and updates the status"
+    },
+    "step3": {
+      "title": "Get Approved & Start",
+      "description": "After proposal approval, receive official authorization and begin project execution"
+    }
+  },
+  "stats": {
+    "proposals": "Project Proposals",
+    "villages": "Participating Villages",
+    "municipalities": "Local Municipalities",
+    "approved": "Approval Rate"
+  },
+  "cta": {
+    "title": "Ready to Get Started?",
+    "subtitle": "Join dozens of villages already using our system to manage project proposals",
+    "villageButton": "Register as Village",
+    "municipalityButton": "Register as Municipality"
+  },
+  "footer": {
+    "description": "Project proposal management system for villages and local municipalities",
+    "quickLinks": "Quick Links",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact",
+    "support": "Support",
+    "allRightsReserved": "All Rights Reserved"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "back": "Back"
+  }
+}
+

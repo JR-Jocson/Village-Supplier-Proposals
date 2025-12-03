@@ -1,20 +1,31 @@
-# Village Supplier Proposals
+# Village Supplier Proposals - מערכת הצעות פרויקטים לכפרים
 
-A modern web application built with Next.js 15, Tailwind CSS, Supabase PostgreSQL, and Prisma ORM.
+A modern bilingual (Hebrew/English) web application for managing village project proposals to local municipalities. Built with Next.js 15, Tailwind CSS, Supabase PostgreSQL, and Prisma ORM.
+
+## 🌟 Key Highlights
+
+- **🌐 Bilingual Support**: Hebrew (RTL) primary, English (LTR) secondary
+- **🎨 Modern UI**: Beautiful, responsive design with dark mode
+- **⚡ Performance**: Built with Next.js 15 and React Server Components
+- **🔒 Type-Safe**: Full TypeScript with Prisma integration
+- **📱 Mobile-First**: Fully responsive across all devices
 
 ## Tech Stack
 
 - **Frontend Framework**: Next.js 15 (App Router)
+- **Internationalization**: next-intl
 - **Styling**: Tailwind CSS
 - **Database**: Supabase PostgreSQL
 - **ORM**: Prisma
 - **Language**: TypeScript
+- **Languages Supported**: Hebrew (עברית), English
 
 ## 📚 Documentation
 
 Detailed documentation is available in the [`docs/`](./docs) folder:
 
 - **[Quick Start Guide](./docs/QUICKSTART.md)** - Get started in 5 minutes
+- **[Landing Page Guide](./docs/LANDING_PAGE.md)** - Landing page components and customization
 - **[Project Structure](./docs/PROJECT_STRUCTURE.md)** - Understand the codebase
 - **[Setup Status](./docs/SETUP_COMPLETE.md)** - What's already configured
 - **[Security Advisories](./docs/SECURITY_ADVISORIES.md)** - Important security info
@@ -83,6 +94,8 @@ Detailed documentation is available in the [`docs/`](./docs) folder:
    ```
 
    Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+   - Hebrew (default): [http://localhost:3000/he](http://localhost:3000/he)
+   - English: [http://localhost:3000/en](http://localhost:3000/en)
 
 ## Project Structure
 

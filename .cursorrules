@@ -1,0 +1,322 @@
+# Village Supplier Proposals - Development Rules
+
+## Project Context
+
+**Project Name:** Village Supplier Proposals
+**Tech Stack:** Next.js 15, TypeScript, Tailwind CSS, Prisma, Supabase
+**Supabase Project ID:** qtjnbtvtuivzikeiufua
+**Database:** PostgreSQL 17.6.1 @ db.qtjnbtvtuivzikeiufua.supabase.co
+**Region:** EU Central (Frankfurt)
+
+## Primary Language & Localization
+
+### Hebrew as Primary Language (RTL)
+- **Default Language:** Hebrew (he)
+- **Text Direction:** RTL (Right-to-Left)
+- All UI text, labels, and content MUST be in Hebrew by default
+- Use proper Hebrew typography and formatting
+- Ensure all layouts support RTL direction
+
+### English as Secondary Language (LTR)
+- Support i18n implementation for English translation
+- English text direction: LTR (Left-to-Right)
+- Implement language switching capability
+- Maintain separate translations for he/en
+
+### RTL/LTR Implementation Rules
+1. Use `dir="rtl"` for Hebrew, `dir="ltr"` for English
+2. Tailwind classes should use logical properties:
+   - Use `ms-*` (margin-start) instead of `ml-*`
+   - Use `me-*` (margin-end) instead of `mr-*`
+   - Use `ps-*` (padding-start) instead of `pl-*`
+   - Use `pe-*` (padding-end) instead of `pr-*`
+3. Flex/Grid layouts should adapt to RTL automatically
+4. Icons and arrows should flip in RTL context
+
+## i18n Implementation
+
+### Recommended Setup
+- Use `next-intl` or `next-i18next` for internationalization
+- Store translations in `/locales/he/` and `/locales/en/`
+- Structure: `locales/{locale}/common.json`, `pages.json`, etc.
+
+### Translation Files Structure
+```
+locales/
+  ├── he/
+  │   ├── common.json
+  │   ├── proposals.json
+  │   └── auth.json
+  └── en/
+      ├── common.json
+      ├── proposals.json
+      └── auth.json
+```
+
+## Code Style & Conventions
+
+### TypeScript
+- Always use TypeScript, no JavaScript files
+- Strict mode enabled
+- Define proper interfaces and types
+- Use Prisma types and Supabase database types
+
+### Components
+- Use functional components with TypeScript
+- Prefer Server Components (RSC) when possible
+- Client Components only when needed ('use client')
+- Component naming: PascalCase
+
+### File Naming
+- Components: `ComponentName.tsx`
+- Utilities: `utility-name.ts`
+- API routes: `route.ts`
+- Pages: `page.tsx`
+
+### Imports
+- Use path aliases: `@/` for root
+- Group imports: React → Next.js → Third-party → Local
+- Use named exports for components
+
+## Styling with Tailwind
+
+### RTL-First Approach
+```tsx
+// ✅ Good - RTL compatible
+<div className="ms-4 pe-2">
+
+// ❌ Bad - Not RTL compatible  
+<div className="ml-4 pr-2">
+```
+
+### Responsive Design
+- Mobile-first approach
+- Support both RTL and LTR layouts
+- Test on both Hebrew and English
+
+### Dark Mode
+- Support dark mode using Tailwind's dark: modifier
+- Respect system preferences
+- Allow manual toggle
+
+## Database & Supabase
+
+### Supabase Project
+- **Project ID:** qtjnbtvtuivzikeiufua
+- Always use this project ID when working with Supabase MCP tools
+- No need to search for project - use this ID directly
+
+### Prisma Usage
+- Use Prisma Client for all database operations
+- Always include proper error handling
+- Use transactions for related operations
+- Generate Prisma Client after schema changes: `npx prisma generate`
+
+### Database Schema
+- Use meaningful field names in English (internal)
+- Add comments for clarity
+- Always include `createdAt` and `updatedAt` timestamps
+- Use UUID for IDs
+
+## API Routes
+
+### Structure
+```typescript
+// app/api/[endpoint]/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET() {
+  try {
+    // Implementation
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Error message in Hebrew' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Error Messages
+- User-facing errors in Hebrew (or translated based on locale)
+- Log detailed errors in English for debugging
+- Always return proper HTTP status codes
+
+## Security Rules
+
+### Row Level Security (RLS)
+- ⚠️ MUST enable RLS before production
+- See `docs/SECURITY_ADVISORIES.md`
+- Create appropriate policies for User and Proposal tables
+
+### Environment Variables
+- Never commit `.env` file
+- Use `env-example.txt` as template
+- Validate required env vars on startup
+
+### Authentication
+- Plan for Supabase Auth integration
+- Implement proper session management
+- Secure all API routes
+
+## Component Examples
+
+### Hebrew RTL Component
+```tsx
+import { useTranslations } from 'next-intl';
+
+export function ProposalCard() {
+  const t = useTranslations('proposals');
+  
+  return (
+    <div className="rounded-lg border p-6" dir="rtl">
+      <h2 className="text-xl font-bold mb-4">
+        {t('title')}
+      </h2>
+      <p className="text-gray-600 dark:text-gray-300">
+        {t('description')}
+      </p>
+      <div className="flex gap-2 mt-4">
+        <button className="ms-auto px-4 py-2 bg-blue-600 text-white rounded">
+          {t('submit')}
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+## Testing
+
+### Before Committing
+- Test RTL layout in Hebrew
+- Test LTR layout in English
+- Check responsive design
+- Verify dark mode
+- Test database operations
+
+### Browser Testing
+- Chrome/Edge (RTL support)
+- Firefox (RTL support)
+- Safari (RTL support)
+- Mobile browsers
+
+## Documentation
+
+### Code Comments
+- Write technical comments in English
+- User-facing text in Hebrew
+- Document complex logic
+- Add JSDoc for functions
+
+### Commit Messages
+- Write in English
+- Use conventional commits format
+- Be descriptive
+
+## Project Structure
+
+### Keep Clean
+- Source code in: `app/`, `components/`, `lib/`
+- Documentation in: `docs/`
+- No unnecessary files in root
+- Use `.gitignore` properly
+
+### Documentation Location
+- All guides in `docs/` folder
+- Quick start: `docs/QUICKSTART.md`
+- Security: `docs/SECURITY_ADVISORIES.md`
+- Structure: `docs/STRUCTURE.md`
+
+## Performance
+
+### Optimization
+- Use Next.js Image component for images
+- Implement lazy loading for heavy components
+- Minimize client-side JavaScript
+- Use Server Components when possible
+
+### Database
+- Use Prisma select to fetch only needed fields
+- Implement pagination for lists
+- Use database indexes appropriately
+
+## Accessibility (a11y)
+
+### ARIA Labels
+- Provide ARIA labels in current language
+- Support keyboard navigation
+- Ensure proper heading hierarchy
+
+### RTL Accessibility
+- Test screen readers with Hebrew
+- Ensure proper focus order in RTL
+- Support high contrast mode
+
+## Common Patterns
+
+### Data Fetching (Server Component)
+```typescript
+import { prisma } from '@/lib/prisma';
+
+export default async function ProposalsPage() {
+  const proposals = await prisma.proposal.findMany({
+    include: { user: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  
+  return <ProposalsList proposals={proposals} />;
+}
+```
+
+### With i18n
+```typescript
+import { getTranslations } from 'next-intl/server';
+
+export default async function ProposalsPage() {
+  const t = await getTranslations('proposals');
+  
+  return (
+    <div>
+      <h1>{t('pageTitle')}</h1>
+    </div>
+  );
+}
+```
+
+## Quick Reference
+
+### Supabase Access
+- Project: qtjnbtvtuivzikeiufua
+- Dashboard: https://app.supabase.com/project/qtjnbtvtuivzikeiufua
+- Database: https://app.supabase.com/project/qtjnbtvtuivzikeiufua/editor
+
+### Commands
+```bash
+npm run dev          # Start development server
+npx prisma studio    # Database GUI
+npx prisma generate  # Regenerate Prisma Client
+npm run build        # Build for production
+```
+
+### File Locations
+- Supabase client: `lib/supabase.ts`
+- Prisma client: `lib/prisma.ts`
+- Database types: `types/supabase.ts`
+- Schema: `prisma/schema.prisma`
+
+## Important Notes
+
+1. **Always Hebrew First:** UI must be in Hebrew with RTL support
+2. **Supabase Project:** qtjnbtvtuivzikeiufua - use this ID directly
+3. **i18n Ready:** Implement next-intl for Hebrew/English switching
+4. **RTL Tailwind:** Use logical properties (ms-*, me-*, ps-*, pe-*)
+5. **Security:** Enable RLS before production
+6. **Type Safety:** Use TypeScript everywhere with proper types
+
+---
+
+**Remember:** This is a Hebrew-first application with RTL as default. Always test layouts in both Hebrew (RTL) and English (LTR) directions.
+

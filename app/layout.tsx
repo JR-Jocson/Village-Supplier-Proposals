@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import { locales } from "@/i18n";
 
 export const metadata: Metadata = {
-  title: "Village Supplier Proposals",
-  description: "Manage supplier proposals efficiently",
+  title: "Village Supplier Proposals - מערכת הצעות פרויקטים לכפרים",
+  description: "Digital platform for managing village project proposals to local municipalities - פלטפורמה דיגיטלית לניהול הצעות פרויקטים",
 };
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
-    </html>
-  );
+  return children;
 }
 
