@@ -118,6 +118,78 @@ locales/
 - Always include `createdAt` and `updatedAt` timestamps
 - Use UUID for IDs
 
+## n8n Integration
+
+### Environment Variables
+- **N8N_BASE_URL**: Base URL for n8n webhook service (e.g., `https://tauga.app.n8n.cloud`)
+- **N8N_AUTH_HEADER_NAME**: Name of the authentication header (e.g., `village_proposal_auth`)
+- **N8N_AUTH_HEADER_VALUE**: Value for the authentication header (e.g., `G5EhcKzo6BvFpv`)
+
+### Usage Pattern
+Always use separate header name and value variables - **NEVER combine them into a single env var**.
+
+```typescript
+// ✅ Correct - Separate header name and value
+const N8N_BASE_URL = process.env.N8N_BASE_URL;
+const N8N_AUTH_HEADER_NAME = process.env.N8N_AUTH_HEADER_NAME;
+const N8N_AUTH_HEADER_VALUE = process.env.N8N_AUTH_HEADER_VALUE;
+
+const response = await fetch(`${N8N_BASE_URL}/webhook/endpoint`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    [N8N_AUTH_HEADER_NAME]: N8N_AUTH_HEADER_VALUE,
+  },
+  body: JSON.stringify(data),
+});
+```
+
+```typescript
+// ❌ Wrong - Don't combine header name and value
+const N8N_AUTH_HEADER = process.env.N8N_AUTH_HEADER; // "village_proposal_auth=G5EhcKzo6BvFpv"
+headers: {
+  'Authorization': N8N_AUTH_HEADER, // This won't work correctly
+}
+```
+
+### n8n Webhook Endpoints
+- **Test Endpoint**: `/webhook/test` (GET) - Returns `{"message": "Workflow was started"}`
+- **Invoice Analysis**: `/webhook/analyze-invoice` (POST) - Analyzes tax invoices and returns price
+
+### Request Format for Invoice Analysis
+```typescript
+{
+  file: string,        // Base64 encoded file content
+  fileName: string,    // Original filename
+  fileSize: number,    // File size in bytes
+  mimeType: string     // MIME type (e.g., "application/pdf")
+}
+```
+
+### Expected Response Format
+```typescript
+{
+  price: number,       // Detected price from invoice
+  // Alternative field names also supported:
+  // detectedPrice: number,
+  // amount: number
+}
+```
+
+### Error Handling
+- Always include try-catch blocks around n8n API calls
+- Provide fallback behavior for development (mock data) if n8n is unavailable
+- Log errors for debugging but don't expose sensitive details to client
+- See `app/api/analyze-invoice/route.ts` for reference implementation
+
+### Testing n8n Connection
+```bash
+# Test with curl
+curl -X GET "https://tauga.app.n8n.cloud/webhook/test" \
+  -H "village_proposal_auth: G5EhcKzo6BvFpv" \
+  -H "Content-Type: application/json"
+```
+
 ## API Routes
 
 ### Structure
@@ -153,8 +225,11 @@ export async function GET() {
 
 ### Environment Variables
 - Never commit `.env` file
-- Use `env-example.txt` as template
+- Use `docs/env-example.txt` as template
 - Validate required env vars on startup
+- **n8n variables**: `N8N_BASE_URL`, `N8N_AUTH_HEADER_NAME`, `N8N_AUTH_HEADER_VALUE`
+- **Supabase variables**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Database**: `DATABASE_URL`
 
 ### Authentication
 - Plan for Supabase Auth integration
@@ -306,6 +381,8 @@ npm run build        # Build for production
 - Prisma client: `lib/prisma.ts`
 - Database types: `types/supabase.ts`
 - Schema: `prisma/schema.prisma`
+- n8n API route: `app/api/analyze-invoice/route.ts`
+- n8n docs: `docs/N8N_SETUP.md`
 
 ## Important Notes
 
@@ -315,6 +392,7 @@ npm run build        # Build for production
 4. **RTL Tailwind:** Use logical properties (ms-*, me-*, ps-*, pe-*)
 5. **Security:** Enable RLS before production
 6. **Type Safety:** Use TypeScript everywhere with proper types
+7. **n8n Headers:** Always use separate `N8N_AUTH_HEADER_NAME` and `N8N_AUTH_HEADER_VALUE` env vars, never combine them
 
 ---
 

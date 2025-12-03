@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
-import { locales } from "@/i18n";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Village Supplier Proposals - מערכת הצעות פרויקטים לכפרים",
-  description: "Digital platform for managing village project proposals to local municipalities - פלטפורמה דיגיטלית לניהול הצעות פרויקטים",
+  title: "הצעות פרויקטים כפריים | Village Proposals",
+  description: "פלטפורמה להעלאת והגשת הצעות פרויקטים כפריים לרשויות מקומיות",
 };
-
-export function generateStaticParams() {
-  return locales.map((locale) => ({ locale }));
-}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return children;
+  return (
+    <html lang="he">
+      <body className="antialiased bg-white text-gray-900">
+        {children}
+      </body>
+    </html>
+  );
 }
 

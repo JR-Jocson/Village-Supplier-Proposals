@@ -1,13 +1,13 @@
 'use client';
 
 import { LanguageProvider } from '@/components/LanguageProvider';
-import HomePage from '@/components/HomePage';
+import UploadPage from '@/components/UploadPage';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
-export default function Page() {
+export default function Upload() {
   return (
     <LanguageProvider>
-      <HomePage />
+      <UploadPage />
       <LanguageSwitcher />
     </LanguageProvider>
   );
