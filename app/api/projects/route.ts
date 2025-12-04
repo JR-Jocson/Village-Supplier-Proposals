@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     const fileUrls = await getFileUrls(project.id, uploadedFiles);
 
     // Send to n8n grader workflow
-    await sendToGraderWorkflow(project.id, fileUrls);
+    await sendToGraderWorkflow(project.id, projectName, fileUrls);
 
     return NextResponse.json({
       success: true,
@@ -286,6 +286,7 @@ async function getFileUrls(
 
 async function sendToGraderWorkflow(
   projectId: string,
+  projectName: string,
   fileUrls: {
     committeeApprovalUrl: string;
     chargeNoticeUrl: string;
@@ -296,6 +297,7 @@ async function sendToGraderWorkflow(
   try {
     const payload = {
       projectId,
+      projectName,
       committeeApprovalUrl: fileUrls.committeeApprovalUrl,
       chargeNoticeUrl: fileUrls.chargeNoticeUrl,
       invoiceUrls: fileUrls.invoiceUrls.join(', '),
