@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { supabaseServer } from '@/lib/supabase-server';
 
 const STORAGE_BUCKET = 'projects'; // Bucket name for storing project files
@@ -14,6 +13,8 @@ export async function POST(request: NextRequest) {
     const submitterEmail = formData.get('submitterEmail') as string;
     const submitterPhone = formData.get('submitterPhone') as string;
     const invoicePrice = formData.get('invoicePrice') ? parseFloat(formData.get('invoicePrice') as string) : null;
+    const laApproval = formData.get('laApproval') === 'true' ? true : formData.get('laApproval') === 'false' ? false : null;
+    const avivaApproval = formData.get('avivaApproval') === 'true' ? true : formData.get('avivaApproval') === 'false' ? false : null;
 
     // Validate required fields
     if (!kibbutzName || !submitterName || !submitterEmail || !submitterPhone) {
@@ -23,17 +24,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create project in database
-    const project = await prisma.project.create({
-      data: {
+    // Create project in database using Supabase client
+    const { data: project, error: projectError } = await supabaseServer
+      .from('Project')
+      .insert({
         kibbutzName,
         submitterName,
         submitterEmail,
         submitterPhone,
         invoicePrice,
+        laApproval,
+        avivaApproval,
         status: 'draft',
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (projectError || !project) {
+      console.error('Error creating project:', projectError);
+      throw new Error(projectError?.message || 'Failed to create project record');
+    }
 
     // Ensure storage bucket exists (create if it doesn't)
     const { data: buckets } = await supabaseServer.storage.listBuckets();
@@ -46,83 +56,100 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Upload files
-    const uploadedFiles: Array<{
-      fileName: string;
-      filePath: string;
-      fileType: string;
-      fileSize: number;
-      mimeType: string;
+    // Collect all files to upload (parallel processing)
+    const filesToUpload: Array<{
+      file: File;
+      type: 'invoice' | 'proposal' | 'tender' | 'committee_approval' | 'charge_notice';
+      index?: number;
     }> = [];
 
-    // Process invoice file
-    const invoiceFile = formData.get('invoiceFile') as File | null;
-    if (invoiceFile) {
-      const filePath = await uploadFile(invoiceFile, project.id, 'invoice');
-      if (filePath) {
-        uploadedFiles.push({
-          fileName: invoiceFile.name,
-          filePath,
-          fileType: 'invoice',
-          fileSize: invoiceFile.size,
-          mimeType: invoiceFile.type,
-        });
-      }
+    // Committee approval file
+    const committeeApprovalFile = formData.get('committeeApprovalFile') as File | null;
+    if (committeeApprovalFile) {
+      filesToUpload.push({ file: committeeApprovalFile, type: 'committee_approval' });
     }
 
-    // Process proposal files
+    // Invoice files (multiple)
+    let invoiceIndex = 0;
+    while (formData.has(`invoiceFile_${invoiceIndex}`)) {
+      const invoiceFile = formData.get(`invoiceFile_${invoiceIndex}`) as File;
+      if (invoiceFile) {
+        filesToUpload.push({ file: invoiceFile, type: 'invoice', index: invoiceIndex });
+      }
+      invoiceIndex++;
+    }
+
+    // Proposal files
     let proposalIndex = 0;
     while (formData.has(`proposalFile_${proposalIndex}`)) {
       const proposalFile = formData.get(`proposalFile_${proposalIndex}`) as File;
       if (proposalFile) {
-        const filePath = await uploadFile(proposalFile, project.id, 'proposal', proposalIndex);
-        if (filePath) {
-          uploadedFiles.push({
-            fileName: proposalFile.name,
-            filePath,
-            fileType: 'proposal',
-            fileSize: proposalFile.size,
-            mimeType: proposalFile.type,
-          });
-        }
+        filesToUpload.push({ file: proposalFile, type: 'proposal', index: proposalIndex });
       }
       proposalIndex++;
     }
 
-    // Process tender file (if exists)
+    // Tender file (if exists)
     const tenderFile = formData.get('tenderFile') as File | null;
     if (tenderFile) {
-      const filePath = await uploadFile(tenderFile, project.id, 'tender');
-      if (filePath) {
-        uploadedFiles.push({
-          fileName: tenderFile.name,
-          filePath,
-          fileType: 'tender',
-          fileSize: tenderFile.size,
-          mimeType: tenderFile.type,
-        });
-      }
+      filesToUpload.push({ file: tenderFile, type: 'tender' });
     }
+
+    // Charge notice file (if exists)
+    const chargeNoticeFile = formData.get('chargeNoticeFile') as File | null;
+    if (chargeNoticeFile) {
+      filesToUpload.push({ file: chargeNoticeFile, type: 'charge_notice' });
+    }
+
+    // Upload all files in parallel
+    const uploadPromises = filesToUpload.map(async ({ file, type, index }) => {
+      const filePath = await uploadFile(file, project.id, type, index);
+      if (filePath) {
+        return {
+          fileName: file.name,
+          filePath,
+          fileType: type,
+          fileSize: file.size,
+          mimeType: file.type,
+        };
+      }
+      return null;
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+    const uploadedFiles = uploadResults.filter((result): result is NonNullable<typeof result> => result !== null);
 
     // Create ProjectFile records in database
     if (uploadedFiles.length > 0) {
-      await prisma.projectFile.createMany({
-        data: uploadedFiles.map(file => ({
-          projectId: project.id,
-          fileName: file.fileName,
-          filePath: file.filePath,
-          fileType: file.fileType,
-          fileSize: file.fileSize,
-          mimeType: file.mimeType,
-        })),
-      });
+      const { error: filesError } = await supabaseServer
+        .from('ProjectFile')
+        .insert(
+          uploadedFiles.map(file => ({
+            projectId: project.id,
+            fileName: file.fileName,
+            filePath: file.filePath,
+            fileType: file.fileType,
+            fileSize: file.fileSize,
+            mimeType: file.mimeType,
+          }))
+        );
+
+      if (filesError) {
+        console.error('Error creating project files:', filesError);
+        throw new Error(filesError.message || 'Failed to create file records');
+      }
     }
 
     // Update project status to submitted
-    await prisma.project.update({
-      where: { id: project.id },
-      data: { status: 'submitted' },
-    });
+    const { error: updateError } = await supabaseServer
+      .from('Project')
+      .update({ status: 'submitted' })
+      .eq('id', project.id);
+
+    if (updateError) {
+      console.error('Error updating project status:', updateError);
+      throw new Error(updateError.message || 'Failed to update project status');
+    }
 
     return NextResponse.json({
       success: true,
@@ -132,8 +159,23 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating project:', error);
+    
+    // Provide detailed error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = {
+      message: errorMessage,
+      name: error instanceof Error ? error.name : 'Error',
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    
+    console.error('Full error details:', errorDetails);
+    
     return NextResponse.json(
-      { error: 'Failed to create project', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Failed to create project', 
+        details: errorMessage,
+        debugInfo: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      },
       { status: 500 }
     );
   }
@@ -142,7 +184,7 @@ export async function POST(request: NextRequest) {
 async function uploadFile(
   file: File,
   projectId: string,
-  fileType: 'invoice' | 'proposal' | 'tender',
+  fileType: 'invoice' | 'proposal' | 'tender' | 'committee_approval' | 'charge_notice',
   index?: number
 ): Promise<string | null> {
   try {

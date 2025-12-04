@@ -15,7 +15,7 @@ export default function LanguageSwitcher() {
   };
 
   return (
-    <div className="fixed bottom-6 start-6 z-50">
+    <div className="fixed bottom-6 start-6 z-[9999]">
       <div className="relative">
         {/* Language Options - Slides in from bottom */}
         <div
@@ -27,7 +27,12 @@ export default function LanguageSwitcher() {
         >
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden min-w-[140px]">
             <button
-              onClick={() => handleLanguageChange('he')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLanguageChange('he');
+              }}
+              type="button"
               className={`w-full px-5 py-3 text-start transition-colors ${
                 language === 'he'
                   ? 'bg-gray-900 text-white'
@@ -38,7 +43,12 @@ export default function LanguageSwitcher() {
             </button>
             <div className="h-px bg-gray-200" />
             <button
-              onClick={() => handleLanguageChange('en')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLanguageChange('en');
+              }}
+              type="button"
               className={`w-full px-5 py-3 text-start transition-colors ${
                 language === 'en'
                   ? 'bg-gray-900 text-white'
@@ -52,9 +62,14 @@ export default function LanguageSwitcher() {
 
         {/* Main Button */}
         <button
-          onClick={toggleOpen}
-          className="flex items-center gap-2 px-5 py-3 bg-white text-gray-900 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:scale-105"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleOpen();
+          }}
+          className="flex items-center gap-2 px-5 py-3 bg-white text-gray-900 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:scale-105 pointer-events-auto"
           aria-label="Change language"
+          type="button"
         >
           <svg
             className="w-5 h-5 text-gray-700"

@@ -1,0 +1,19 @@
+{
+  "home": {
+    "title": {
+      "line1": "Village Project",
+      "line2": "Proposals"
+    },
+    "subtitle": "A simple and efficient platform for uploading and verifying rural project proposals",
+    "cta": "Get Started",
+    "tagline": "Connecting rural villages with local authorities",
+    "footer": "© 2025 Village Project Proposals. All rights reserved."
+  },
+  "language": {
+    "he": "עברית",
+    "en": "English",
+    "switchLanguage": "Switch Language"
+  }
+}
+
+
