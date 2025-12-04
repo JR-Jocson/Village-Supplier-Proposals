@@ -16,6 +16,10 @@ const translations = {
     submitterEmailPlaceholder: 'הזן את כתובת האימייל',
     submitterPhone: 'טלפון השולח',
     submitterPhonePlaceholder: 'הזן את מספר הטלפון',
+    projectName: 'שם הפרויקט',
+    projectNameLabel: 'שם הפרויקט כפי שמופיע באישור ועדה מקומית',
+    projectNamePlaceholder: 'הזן את שם הפרויקט',
+    projectNameRequired: 'שם הפרויקט הוא שדה חובה',
     projectPrice: 'סכום הפרויקט',
     projectPricePlaceholder: 'הזן את הסכום הכולל',
     requiredField: 'שדה חובה',
@@ -35,6 +39,10 @@ const translations = {
     submitterEmailPlaceholder: 'Enter your email address',
     submitterPhone: 'Your Phone Number',
     submitterPhonePlaceholder: 'Enter your phone number',
+    projectName: 'Project Name',
+    projectNameLabel: 'Project name as written in Local Committee Approval',
+    projectNamePlaceholder: 'Enter the project name',
+    projectNameRequired: 'Project name is required',
     projectPrice: 'Project Amount',
     projectPricePlaceholder: 'Enter the total amount',
     requiredField: 'Required field',
@@ -55,12 +63,14 @@ export default function UploadPage() {
   const [submitterName, setSubmitterName] = useState<string>('');
   const [submitterEmail, setSubmitterEmail] = useState<string>('');
   const [submitterPhone, setSubmitterPhone] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('');
   const [projectPrice, setProjectPrice] = useState<string>('');
   const [initialPriceThreshold, setInitialPriceThreshold] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
+    projectName?: string;
     price?: string;
   }>({});
 
@@ -87,6 +97,7 @@ export default function UploadPage() {
     setSubmitterName('');
     setSubmitterEmail('');
     setSubmitterPhone('');
+    setProjectName('');
     setProjectPrice('');
     setInitialPriceThreshold(null);
     setFormErrors({});
@@ -117,7 +128,7 @@ export default function UploadPage() {
   const requirements = getRequirements();
 
   const validateContactInfo = () => {
-    const errors: { name?: string; email?: string; phone?: string; price?: string } = {};
+    const errors: { name?: string; email?: string; phone?: string; projectName?: string; price?: string } = {};
     
     if (!submitterName.trim()) {
       errors.name = t.requiredField;
@@ -133,6 +144,10 @@ export default function UploadPage() {
       errors.phone = t.requiredField;
     } else if (!/^[\d\s\-\+\(\)]+$/.test(submitterPhone)) {
       errors.phone = t.invalidPhone;
+    }
+
+    if (!projectName.trim()) {
+      errors.projectName = t.projectNameRequired;
     }
 
     if (!projectPrice.trim()) {
@@ -215,6 +230,7 @@ export default function UploadPage() {
                           }
                         }}
                         placeholder={t.submitterNamePlaceholder}
+                        maxLength={100}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
                           formErrors.name
                             ? 'border-red-500 focus:border-red-500'
@@ -242,6 +258,7 @@ export default function UploadPage() {
                           }
                         }}
                         placeholder={t.submitterEmailPlaceholder}
+                        maxLength={100}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
                           formErrors.email
                             ? 'border-red-500 focus:border-red-500'
@@ -269,6 +286,7 @@ export default function UploadPage() {
                           }
                         }}
                         placeholder={t.submitterPhonePlaceholder}
+                        maxLength={100}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
                           formErrors.phone
                             ? 'border-red-500 focus:border-red-500'
@@ -279,6 +297,39 @@ export default function UploadPage() {
                       {formErrors.phone && (
                         <p className="mt-1 text-sm text-red-500">{formErrors.phone}</p>
                       )}
+                    </div>
+
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        {t.projectNameLabel} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={projectName}
+                        onChange={(e) => {
+                          setProjectName(e.target.value);
+                          if (formErrors.projectName) {
+                            setFormErrors({ ...formErrors, projectName: undefined });
+                          }
+                        }}
+                        placeholder={t.projectNamePlaceholder}
+                        maxLength={100}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+                          formErrors.projectName
+                            ? 'border-red-500 focus:border-red-500'
+                            : 'border-gray-300 focus:border-gray-900'
+                        }`}
+                        dir={language === 'he' ? 'rtl' : 'ltr'}
+                      />
+                      {formErrors.projectName && (
+                        <p className="mt-1 text-sm text-red-500">{formErrors.projectName}</p>
+                      )}
+                      <p className="mt-2 text-sm text-gray-500">
+                        {language === 'he' 
+                          ? 'יש להזין את שם הפרויקט בדיוק כפי שהוא מופיע במסמך אישור הוועדה המקומית'
+                          : 'Enter the project name exactly as it appears in the Local Committee Approval document'}
+                      </p>
                     </div>
 
                     {/* Project Price */}
@@ -325,7 +376,7 @@ export default function UploadPage() {
             </div>
 
             {/* Local Committee Approval Upload - only show if village is selected and all contact info including price is valid */}
-            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectPrice.trim() && !formErrors.price && (
+            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectName.trim() && projectPrice.trim() && !formErrors.price && (
               <LocalCommitteeApproval 
                 onApprovalUploaded={handleCommitteeApprovalUploaded}
                 onBack={handleBackFromCommitteeApproval}
@@ -340,6 +391,7 @@ export default function UploadPage() {
             projectPrice={parseFloat(projectPrice)}
             initialPriceThreshold={initialPriceThreshold}
             selectedVillage={selectedVillage}
+            projectName={projectName}
             submitterName={submitterName}
             submitterEmail={submitterEmail}
             submitterPhone={submitterPhone}

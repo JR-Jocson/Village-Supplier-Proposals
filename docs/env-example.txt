@@ -3,8 +3,9 @@
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-# Optional: Service role key for server-side operations (get from Supabase Dashboard > Settings > API > service_role key)
-# If not provided, the anon key will be used for server-side operations
+# REQUIRED for admin authentication: Service role key bypasses RLS
+# Get from: Supabase Dashboard > Settings > API > service_role (secret)
+# This is CRITICAL for security - the User table has RLS enabled
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Database URL for Prisma (from Supabase)

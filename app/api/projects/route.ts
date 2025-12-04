@@ -3,21 +3,28 @@ import { supabaseServer } from '@/lib/supabase-server';
 
 const STORAGE_BUCKET = 'projects'; // Bucket name for storing project files
 
+// n8n configuration
+const N8N_BASE_URL = process.env.N8N_BASE_URL || 'https://tauga.app.n8n.cloud';
+const N8N_AUTH_HEADER_NAME = process.env.N8N_AUTH_HEADER_NAME || 'village_proposal_auth';
+const N8N_AUTH_HEADER_VALUE = process.env.N8N_AUTH_HEADER_VALUE || 'G5EhcKzo6BvFpv';
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
 
     // Extract project data
     const kibbutzName = formData.get('kibbutzName') as string;
+    const projectName = formData.get('projectName') as string;
     const submitterName = formData.get('submitterName') as string;
     const submitterEmail = formData.get('submitterEmail') as string;
     const submitterPhone = formData.get('submitterPhone') as string;
+    const additionalNotes = formData.get('additionalNotes') as string | null;
     const invoicePrice = formData.get('invoicePrice') ? parseFloat(formData.get('invoicePrice') as string) : null;
     const laApproval = formData.get('laApproval') === 'true' ? true : formData.get('laApproval') === 'false' ? false : null;
     const avivaApproval = formData.get('avivaApproval') === 'true' ? true : formData.get('avivaApproval') === 'false' ? false : null;
 
     // Validate required fields
-    if (!kibbutzName || !submitterName || !submitterEmail || !submitterPhone) {
+    if (!kibbutzName || !projectName || !submitterName || !submitterEmail || !submitterPhone) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -29,9 +36,11 @@ export async function POST(request: NextRequest) {
       .from('Project')
       .insert({
         kibbutzName,
+        projectName,
         submitterName,
         submitterEmail,
         submitterPhone,
+        additionalNotes: additionalNotes || null,
         invoicePrice,
         laApproval,
         avivaApproval,
@@ -151,6 +160,12 @@ export async function POST(request: NextRequest) {
       throw new Error(updateError.message || 'Failed to update project status');
     }
 
+    // Get public URLs for all uploaded files
+    const fileUrls = await getFileUrls(project.id, uploadedFiles);
+
+    // Send to n8n grader workflow
+    await sendToGraderWorkflow(project.id, fileUrls);
+
     return NextResponse.json({
       success: true,
       projectId: project.id,
@@ -216,6 +231,100 @@ async function uploadFile(
   } catch (error) {
     console.error(`Error processing ${fileType} file:`, error);
     return null;
+  }
+}
+
+async function getFileUrls(
+  projectId: string,
+  uploadedFiles: Array<{
+    fileName: string;
+    filePath: string;
+    fileType: string;
+    fileSize: number;
+    mimeType: string;
+  }>
+): Promise<{
+  committeeApprovalUrl: string;
+  chargeNoticeUrl: string;
+  invoiceUrls: string[];
+  proposalUrls: string[];
+}> {
+  const committeeApprovalFile = uploadedFiles.find(f => f.fileType === 'committee_approval');
+  const chargeNoticeFile = uploadedFiles.find(f => f.fileType === 'charge_notice');
+  const invoiceFiles = uploadedFiles.filter(f => f.fileType === 'invoice');
+  const proposalFiles = uploadedFiles.filter(f => f.fileType === 'proposal');
+
+  // Get signed URLs for private files (valid for 1 year)
+  const getSignedUrl = async (filePath: string): Promise<string> => {
+    const { data, error } = await supabaseServer.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(filePath, 31536000); // 1 year in seconds
+    
+    if (error || !data) {
+      console.error('Error creating signed URL for', filePath, error);
+      return '';
+    }
+    
+    return data.signedUrl;
+  };
+
+  // Get all URLs in parallel
+  const [committeeUrl, chargeUrl, invoiceUrls, proposalUrls] = await Promise.all([
+    committeeApprovalFile ? getSignedUrl(committeeApprovalFile.filePath) : Promise.resolve(''),
+    chargeNoticeFile ? getSignedUrl(chargeNoticeFile.filePath) : Promise.resolve(''),
+    Promise.all(invoiceFiles.map(f => getSignedUrl(f.filePath))),
+    Promise.all(proposalFiles.map(f => getSignedUrl(f.filePath))),
+  ]);
+
+  return {
+    committeeApprovalUrl: committeeUrl,
+    chargeNoticeUrl: chargeUrl,
+    invoiceUrls: invoiceUrls.filter(url => url !== ''),
+    proposalUrls: proposalUrls.filter(url => url !== ''),
+  };
+}
+
+async function sendToGraderWorkflow(
+  projectId: string,
+  fileUrls: {
+    committeeApprovalUrl: string;
+    chargeNoticeUrl: string;
+    invoiceUrls: string[];
+    proposalUrls: string[];
+  }
+): Promise<void> {
+  try {
+    const payload = {
+      projectId,
+      committeeApprovalUrl: fileUrls.committeeApprovalUrl,
+      chargeNoticeUrl: fileUrls.chargeNoticeUrl,
+      invoiceUrls: fileUrls.invoiceUrls.join(', '),
+      proposalUrls: fileUrls.proposalUrls.join(', '),
+    };
+
+    console.log('Sending to n8n grader workflow:', payload);
+
+    const response = await fetch(`${N8N_BASE_URL}/webhook/village-supplier-proposal/grader`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [N8N_AUTH_HEADER_NAME]: N8N_AUTH_HEADER_VALUE,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('n8n grader workflow error:', response.status, errorText);
+      throw new Error(`n8n grader workflow failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('n8n grader workflow response:', result);
+  } catch (error) {
+    console.error('Error sending to n8n grader workflow:', error);
+    // Don't throw error - we don't want to fail the entire request if n8n is down
+    // The project is already created and files uploaded successfully
   }
 }
 

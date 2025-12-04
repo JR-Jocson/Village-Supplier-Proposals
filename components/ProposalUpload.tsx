@@ -25,6 +25,10 @@ const translations = {
     priceDetected: 'סכום הפרויקט:',
     priceChangedWarning: 'שים לב: שינוי המחיר ידרוש העלאת קבצים מחדש',
     additionalDocuments: 'מסמכים נוספים',
+    additionalNotes: 'הערות נוספות',
+    additionalNotesLabel: 'הערות נוספות (אופציונלי)',
+    additionalNotesPlaceholder: 'הוסף כל מידע נוסף שתרצה לשתף',
+    charactersRemaining: 'תווים נותרו',
     approvals: 'אישורים',
     laApproval: 'התקבל אישור LA',
     avivaApproval: 'התקבל אישור אביבה (לבניינים ציבוריים)',
@@ -52,6 +56,10 @@ const translations = {
     priceDetected: 'Project Amount:',
     priceChangedWarning: 'Note: Changing the price will require re-uploading files',
     additionalDocuments: 'Additional Documents',
+    additionalNotes: 'Additional Notes',
+    additionalNotesLabel: 'Additional Notes (Optional)',
+    additionalNotesPlaceholder: 'Add any additional information you would like to share',
+    charactersRemaining: 'characters remaining',
     approvals: 'Approvals',
     laApproval: 'LA Approval received',
     avivaApproval: "Aviva's approval (for public buildings) received",
@@ -65,6 +73,7 @@ interface ProposalUploadProps {
   projectPrice: number;
   initialPriceThreshold: number | null;
   selectedVillage: string;
+  projectName: string;
   submitterName: string;
   submitterEmail: string;
   submitterPhone: string;
@@ -76,7 +85,8 @@ export default function ProposalUpload({
   committeeApprovalFile,
   projectPrice,
   initialPriceThreshold,
-  selectedVillage, 
+  selectedVillage,
+  projectName,
   submitterName, 
   submitterEmail, 
   submitterPhone,
@@ -90,6 +100,7 @@ export default function ProposalUpload({
   const [proposalFiles, setProposalFiles] = useState<(File | null)[]>([]);
   const [tenderFile, setTenderFile] = useState<File | null>(null);
   const [chargeNoticeFile, setChargeNoticeFile] = useState<File | null>(null);
+  const [additionalNotes, setAdditionalNotes] = useState<string>('');
   const [laApproval, setLaApproval] = useState<boolean | null>(null);
   const [avivaApproval, setAvivaApproval] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -172,10 +183,16 @@ export default function ProposalUpload({
       // Create FormData with all project information and files
       const formData = new FormData();
       formData.append('kibbutzName', selectedVillage);
+      formData.append('projectName', projectName);
       formData.append('submitterName', submitterName);
       formData.append('submitterEmail', submitterEmail);
       formData.append('submitterPhone', submitterPhone);
       formData.append('invoicePrice', projectPrice.toString());
+      
+      // Add additional notes if provided
+      if (additionalNotes.trim()) {
+        formData.append('additionalNotes', additionalNotes.trim());
+      }
 
       // Add committee approval file
       formData.append('committeeApprovalFile', committeeApprovalFile);
@@ -340,7 +357,29 @@ export default function ProposalUpload({
           />
         </div>
 
-        {/* Section 4: Approvals */}
+        {/* Section 4: Additional Notes */}
+        <div className="border-t border-gray-200 pt-8 space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">{t.additionalNotes}</h2>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              {t.additionalNotesLabel}
+            </label>
+            <textarea
+              value={additionalNotes}
+              onChange={(e) => setAdditionalNotes(e.target.value)}
+              placeholder={t.additionalNotesPlaceholder}
+              maxLength={1000}
+              rows={4}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-gray-900 transition-colors resize-none"
+              dir={language === 'he' ? 'rtl' : 'ltr'}
+            />
+            <p className="mt-2 text-sm text-gray-500">
+              {1000 - additionalNotes.length} {t.charactersRemaining}
+            </p>
+          </div>
+        </div>
+
+        {/* Section 5: Approvals */}
         <div className="border-t border-gray-200 pt-8 space-y-6">
           <h2 className="text-xl font-bold text-gray-900">{t.approvals}</h2>
 

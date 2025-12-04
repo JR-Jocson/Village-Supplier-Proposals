@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useLanguage } from './LanguageProvider';
 
 const translations = {
@@ -37,8 +38,10 @@ export default function AdminLoginForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     setError('');
     setLoading(true);
 
@@ -85,7 +88,7 @@ export default function AdminLoginForm() {
           </div>
           
           {/* Login Form */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} action="javascript:void(0)">
             {error && (
               <div className="rounded-lg bg-red-50 border border-red-200 p-4">
                 <p className="text-sm text-red-800 text-center">
@@ -141,12 +144,12 @@ export default function AdminLoginForm() {
 
           {/* Back to Home Link */}
           <div className="mt-8 text-center">
-            <a
+            <Link
               href="/"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               {t.backToHome}
-            </a>
+            </Link>
           </div>
         </div>
       </main>

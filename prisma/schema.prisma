@@ -23,18 +23,20 @@ model User {
 }
 
 model Project {
-  id             String       @id @default(uuid())
-  kibbutzName    String       // Name of the kibbutz/settlement
-  submitterName  String       // Name of the person who submitted
-  submitterEmail String       // Email of the submitter
-  submitterPhone String       // Phone number of the submitter
-  invoicePrice   Float?       // Detected price from invoice
-  status         String       @default("draft") // draft, submitted, reviewed, etc.
-  laApproval     Boolean?     // Whether LA approval was received for the project
-  avivaApproval  Boolean?     // Whether Aviva's approval for a public building was received
-  files          ProjectFile[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String       @id @default(uuid())
+  kibbutzName     String       // Name of the kibbutz/settlement
+  projectName     String       // Name of the project as written in Local Committee Approval
+  submitterName   String       // Name of the person who submitted
+  submitterEmail  String       // Email of the submitter
+  submitterPhone  String       // Phone number of the submitter
+  invoicePrice    Float?       // Detected price from invoice
+  additionalNotes String?      // Additional notes from submitter (up to 1000 chars)
+  status          String       @default("draft") // draft, submitted, reviewed, etc.
+  laApproval      Boolean?     // Whether LA approval was received for the project
+  avivaApproval   Boolean?     // Whether Aviva's approval for a public building was received
+  files           ProjectFile[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model ProjectFile {
