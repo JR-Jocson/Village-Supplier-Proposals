@@ -12,6 +12,16 @@ datasource db {
   // For migrations, use: npx prisma db push (works with DATABASE_URL)
 }
 
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed password
+  name      String
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Project {
   id             String       @id @default(uuid())
   kibbutzName    String       // Name of the kibbutz/settlement

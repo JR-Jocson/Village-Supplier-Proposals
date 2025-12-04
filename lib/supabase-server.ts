@@ -1,14 +1,16 @@
+/**
+ * Server-side Supabase client for direct database queries
+ * This bypasses Prisma connection issues
+ */
+
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// Use service role key for server-side operations if available, otherwise use anon key
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabaseServer = createClient<Database>(supabaseUrl, supabaseKey, {
+export const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 });
-
