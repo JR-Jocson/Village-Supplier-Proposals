@@ -17,13 +17,62 @@ export async function GET(request: Request) {
       // );
     }
 
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const kibbutz = searchParams.get('kibbutz');
+    const projectName = searchParams.get('projectName');
+    const submitter = searchParams.get('submitter');
+    const priceType = searchParams.get('priceType');
+    const priceMin = searchParams.get('priceMin');
+    const priceMax = searchParams.get('priceMax');
+    const priceValue = searchParams.get('priceValue');
+    const aiStatus = searchParams.get('aiStatus');
+
     console.log('Fetching projects from database...');
     
-    // Fetch all projects using Supabase (Prisma has connection issues)
-    const { data: projects, error: projectsError } = await supabaseServer
+    // First, fetch ALL projects to calculate kibbutz dropdown options
+    const { data: allProjects } = await supabaseServer
       .from('Project')
-      .select('*')
-      .order('createdAt', { ascending: false });
+      .select('kibbutzName');
+
+    // Start building the filtered query
+    let query = supabaseServer
+      .from('Project')
+      .select('*');
+
+    // Apply filters
+    if (kibbutz) {
+      query = query.eq('kibbutzName', kibbutz);
+    }
+    
+    if (projectName) {
+      query = query.ilike('projectName', `%${projectName}%`);
+    }
+    
+    if (submitter) {
+      query = query.or(`submitterName.ilike.%${submitter}%,submitterEmail.ilike.%${submitter}%`);
+    }
+
+    // Price filters
+    if (priceType === 'range') {
+      if (priceMin) {
+        query = query.gte('invoicePrice', parseFloat(priceMin));
+      }
+      if (priceMax) {
+        query = query.lte('invoicePrice', parseFloat(priceMax));
+      }
+    } else if (priceType === 'less' && priceValue) {
+      query = query.lt('invoicePrice', parseFloat(priceValue));
+    } else if (priceType === 'greater' && priceValue) {
+      query = query.gt('invoicePrice', parseFloat(priceValue));
+    } else if (priceType === 'equal' && priceValue) {
+      query = query.eq('invoicePrice', parseFloat(priceValue));
+    }
+
+    // Order by createdAt
+    query = query.order('createdAt', { ascending: false });
+
+    const { data: projects, error: projectsError } = await query;
 
     if (projectsError) {
       console.error('Error fetching projects:', projectsError);
@@ -56,11 +105,25 @@ export async function GET(request: Request) {
     }, {} as Record<string, any>);
 
     // Combine the data
-    const projectsWithRelations = (projects || []).map(p => ({
+    let projectsWithRelations = (projects || []).map(p => ({
       ...p,
       files: filesByProject[p.id] || [],
       analysis: analysisByProject[p.id] || null,
     }));
+
+    // Apply AI status filter (needs to be done after joining analysis data)
+    if (aiStatus) {
+      projectsWithRelations = projectsWithRelations.filter(p => {
+        if (aiStatus === 'approved') {
+          return p.analysis?.isApproved === true;
+        } else if (aiStatus === 'needs_review') {
+          return p.analysis?.isApproved === false;
+        } else if (aiStatus === 'pending') {
+          return !p.analysis || p.analysis.isApproved === null;
+        }
+        return true;
+      });
+    }
 
     // Calculate statistics
     const stats = {
@@ -89,8 +152,8 @@ export async function GET(request: Request) {
       return acc;
     }, {} as Record<string, number>);
 
-    // Projects grouped by kibbutz
-    const projectsByKibbutz = projectsWithRelations.reduce((acc, project) => {
+    // Projects grouped by kibbutz (from ALL projects for dropdown, not filtered)
+    const projectsByKibbutz = (allProjects || []).reduce((acc, project) => {
       const kibbutz = project.kibbutzName || 'Unknown';
       if (!acc[kibbutz]) {
         acc[kibbutz] = 0;

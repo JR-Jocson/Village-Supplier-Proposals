@@ -65,6 +65,32 @@ const translations = {
     pending: 'ממתין',
     
     currency: '₪',
+    
+    // Filters
+    filters: 'סינון',
+    filterByKibbutz: 'סינון לפי קיבוץ',
+    searchProjectName: 'חיפוש לפי שם פרויקט',
+    searchSubmitter: 'חיפוש לפי שם מגיש',
+    filterByPrice: 'סינון לפי מחיר',
+    filterByAIStatus: 'סינון לפי סטטוס AI',
+    priceRange: 'טווח מחיר',
+    priceMin: 'מינימום',
+    priceMax: 'מקסימום',
+    priceLessThan: 'פחות מ-',
+    priceGreaterThan: 'יותר מ-',
+    priceEqual: 'שווה ל-',
+    clearFilters: 'נקה סינון',
+    applyFilters: 'החל סינון',
+    allKibbutzim: 'כל הקיבוצים',
+    allAIStatuses: 'כל הסטטוסים',
+    
+    // Issue Types
+    issueAmountMismatch: 'אי התאמה בסכום (חשבונית מול פרוטוקול מול הודעת חיוב)',
+    issueNonLowestBid: 'נבחרה הצעה שאינה הנמוכה ביותר',
+    issueMissingAuth: 'חסר חתימה/חותמת ועדה',
+    issueInsufficientBids: 'מספר הצעות לא מספיק',
+    issueNoSummary: 'חסר סיכום',
+    issueBadEntity: 'ישות חיוב שגויה (שם קיבוץ שגוי)',
   },
   en: {
     dashboard: 'Admin Dashboard',
@@ -124,6 +150,32 @@ const translations = {
     pending: 'Pending',
     
     currency: '₪',
+    
+    // Filters
+    filters: 'Filters',
+    filterByKibbutz: 'Filter by Kibbutz',
+    searchProjectName: 'Search by Project Name',
+    searchSubmitter: 'Search by Submitter',
+    filterByPrice: 'Filter by Price',
+    filterByAIStatus: 'Filter by AI Status',
+    priceRange: 'Price Range',
+    priceMin: 'Minimum',
+    priceMax: 'Maximum',
+    priceLessThan: 'Less Than',
+    priceGreaterThan: 'Greater Than',
+    priceEqual: 'Equal To',
+    clearFilters: 'Clear Filters',
+    applyFilters: 'Apply Filters',
+    allKibbutzim: 'All Kibbutzim',
+    allAIStatuses: 'All Statuses',
+    
+    // Issue Types
+    issueAmountMismatch: 'Amount Mismatch (Invoice vs. Protocol vs. Charge Notice)',
+    issueNonLowestBid: 'Non-Lowest Bid Selected',
+    issueMissingAuth: 'Missing Committee Signature/Stamp',
+    issueInsufficientBids: 'Insufficient Bids Submitted',
+    issueNoSummary: 'No Summary Included',
+    issueBadEntity: 'Incorrect Billed Entity (Wrong Kibbutz Name)',
   },
 };
 
@@ -187,6 +239,17 @@ interface AdminDashboardProps {
   session: AdminSession;
 }
 
+interface FilterState {
+  kibbutz: string;
+  projectName: string;
+  submitter: string;
+  priceType: 'range' | 'less' | 'greater' | 'equal' | '';
+  priceMin: string;
+  priceMax: string;
+  priceValue: string;
+  aiStatus: string;
+}
+
 export default function AdminDashboard({ session }: AdminDashboardProps) {
   const router = useRouter();
   const { language } = useLanguage();
@@ -195,6 +258,17 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<FilterState>({
+    kibbutz: '',
+    projectName: '',
+    submitter: '',
+    priceType: '',
+    priceMin: '',
+    priceMax: '',
+    priceValue: '',
+    aiStatus: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -202,7 +276,27 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/admin/dashboard');
+      setDataLoading(true);
+      const params = new URLSearchParams();
+      
+      if (filters.kibbutz) params.append('kibbutz', filters.kibbutz);
+      if (filters.projectName) params.append('projectName', filters.projectName);
+      if (filters.submitter) params.append('submitter', filters.submitter);
+      if (filters.priceType) {
+        params.append('priceType', filters.priceType);
+        if (filters.priceType === 'range') {
+          if (filters.priceMin) params.append('priceMin', filters.priceMin);
+          if (filters.priceMax) params.append('priceMax', filters.priceMax);
+        } else if (filters.priceValue) {
+          params.append('priceValue', filters.priceValue);
+        }
+      }
+      if (filters.aiStatus) params.append('aiStatus', filters.aiStatus);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/api/admin/dashboard?${queryString}` : '/api/admin/dashboard';
+      
+      const response = await fetch(url);
       if (response.ok) {
         const dashboardData = await response.json();
         setData(dashboardData);
@@ -212,6 +306,41 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
     } finally {
       setDataLoading(false);
     }
+  };
+
+  const handleFilterChange = (key: keyof FilterState, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handlePriceTypeChange = (priceType: FilterState['priceType']) => {
+    setFilters(prev => ({ 
+      ...prev, 
+      priceType,
+      priceMin: '',
+      priceMax: '',
+      priceValue: '',
+    }));
+  };
+
+  const handleApplyFilters = () => {
+    fetchDashboardData();
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      kibbutz: '',
+      projectName: '',
+      submitter: '',
+      priceType: '',
+      priceMin: '',
+      priceMax: '',
+      priceValue: '',
+      aiStatus: '',
+    });
+    // Fetch data after clearing (will use empty filters)
+    setTimeout(() => {
+      fetchDashboardData();
+    }, 0);
   };
 
   const handleLogout = async () => {
@@ -276,6 +405,68 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
       charge_notice: { he: 'הודעת חיוב', en: 'Charge Notice' },
     };
     return labels[fileType]?.[language] || fileType;
+  };
+
+  const getIssueLabel = (issue: string) => {
+    // Normalize the issue string (trim whitespace)
+    const normalizedIssue = issue.trim();
+    
+    // Determine which translation key to use based on the issue string
+    let translationKey: keyof typeof translations.he | null = null;
+    
+    // Check for issue codes first
+    if (normalizedIssue === 'AMOUNT_MISMATCH') {
+      translationKey = 'issueAmountMismatch';
+    } else if (normalizedIssue === 'NON_LOWEST_BID') {
+      translationKey = 'issueNonLowestBid';
+    } else if (normalizedIssue === 'MISSING_AUTH') {
+      translationKey = 'issueMissingAuth';
+    } else if (normalizedIssue === 'INSUFFICIENT_BIDS') {
+      translationKey = 'issueInsufficientBids';
+    } else if (normalizedIssue === 'NO_SUMMARY') {
+      translationKey = 'issueNoSummary';
+    } else if (normalizedIssue === 'BAD_ENTITY') {
+      translationKey = 'issueBadEntity';
+    }
+    // Check for English text (as stored in database)
+    else if (normalizedIssue === 'Amount Mismatch (Invoice vs. Protocol vs. Charge Notice)') {
+      translationKey = 'issueAmountMismatch';
+    } else if (normalizedIssue === 'Non-Lowest Bid Selected') {
+      translationKey = 'issueNonLowestBid';
+    } else if (normalizedIssue === 'Missing Committee Signature/Stamp') {
+      translationKey = 'issueMissingAuth';
+    } else if (normalizedIssue === 'Insufficient Bids Submitted') {
+      translationKey = 'issueInsufficientBids';
+    } else if (normalizedIssue === 'No Summary Included') {
+      translationKey = 'issueNoSummary';
+    } else if (normalizedIssue === 'Incorrect Billed Entity (Wrong Kibbutz Name)') {
+      translationKey = 'issueBadEntity';
+    }
+    // Try case-insensitive and partial matching
+    else {
+      const lowerIssue = normalizedIssue.toLowerCase();
+      if (lowerIssue.includes('amount mismatch')) {
+        translationKey = 'issueAmountMismatch';
+      } else if (lowerIssue.includes('non-lowest bid') || lowerIssue.includes('non lowest bid')) {
+        translationKey = 'issueNonLowestBid';
+      } else if (lowerIssue.includes('missing committee') || lowerIssue.includes('signature') || lowerIssue.includes('stamp')) {
+        translationKey = 'issueMissingAuth';
+      } else if (lowerIssue.includes('insufficient bids')) {
+        translationKey = 'issueInsufficientBids';
+      } else if (lowerIssue.includes('no summary')) {
+        translationKey = 'issueNoSummary';
+      } else if (lowerIssue.includes('billed entity') || lowerIssue.includes('wrong kibbutz')) {
+        translationKey = 'issueBadEntity';
+      }
+    }
+    
+    // Return the translated label if found
+    if (translationKey) {
+      return translations[language][translationKey];
+    }
+    
+    // If no translation found, return the original issue string
+    return issue;
   };
 
   if (dataLoading) {
@@ -419,6 +610,184 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
           </div>
         </div>
 
+        {/* Filters Section */}
+        <div className="bg-white rounded-xl border border-gray-200 mb-6 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-gray-900">{t.filters}</h2>
+              {(filters.kibbutz || filters.projectName || filters.submitter || filters.priceType || filters.aiStatus) && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {language === 'he' ? 'פעיל' : 'Active'}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
+            >
+              <svg 
+                className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              {showFilters ? (language === 'he' ? 'הסתר' : 'Hide') : (language === 'he' ? 'הצג' : 'Show')}
+            </button>
+          </div>
+          
+          {showFilters && (
+            <div className="px-6 py-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Kibbutz Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.filterByKibbutz}
+                  </label>
+                  <select
+                    value={filters.kibbutz}
+                    onChange={(e) => handleFilterChange('kibbutz', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{t.allKibbutzim}</option>
+                    {data?.projectsByKibbutz && Object.keys(data.projectsByKibbutz).map((kibbutz) => (
+                      <option key={kibbutz} value={kibbutz}>
+                        {kibbutz} ({data.projectsByKibbutz[kibbutz]})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Project Name Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.searchProjectName}
+                  </label>
+                  <input
+                    type="text"
+                    value={filters.projectName}
+                    onChange={(e) => handleFilterChange('projectName', e.target.value)}
+                    placeholder={language === 'he' ? 'הכנס שם פרויקט...' : 'Enter project name...'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Submitter Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.searchSubmitter}
+                  </label>
+                  <input
+                    type="text"
+                    value={filters.submitter}
+                    onChange={(e) => handleFilterChange('submitter', e.target.value)}
+                    placeholder={language === 'he' ? 'הכנס שם מגיש...' : 'Enter submitter name...'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* AI Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.filterByAIStatus}
+                  </label>
+                  <select
+                    value={filters.aiStatus}
+                    onChange={(e) => handleFilterChange('aiStatus', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{t.allAIStatuses}</option>
+                    <option value="approved">{t.aiApproved}</option>
+                    <option value="needs_review">{t.aiNeedsReview}</option>
+                    <option value="pending">{t.aiPending}</option>
+                  </select>
+                </div>
+
+                {/* Price Filter Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.filterByPrice}
+                  </label>
+                  <select
+                    value={filters.priceType}
+                    onChange={(e) => handlePriceTypeChange(e.target.value as FilterState['priceType'])}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{language === 'he' ? 'ללא סינון מחיר' : 'No price filter'}</option>
+                    <option value="range">{t.priceRange}</option>
+                    <option value="less">{t.priceLessThan}</option>
+                    <option value="greater">{t.priceGreaterThan}</option>
+                    <option value="equal">{t.priceEqual}</option>
+                  </select>
+                </div>
+
+                {/* Price Filter Values */}
+                {filters.priceType === 'range' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t.priceMin}
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.priceMin}
+                        onChange={(e) => handleFilterChange('priceMin', e.target.value)}
+                        placeholder={language === 'he' ? 'מינימום' : 'Min'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t.priceMax}
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.priceMax}
+                        onChange={(e) => handleFilterChange('priceMax', e.target.value)}
+                        placeholder={language === 'he' ? 'מקסימום' : 'Max'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+                {(filters.priceType === 'less' || filters.priceType === 'greater' || filters.priceType === 'equal') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {filters.priceType === 'less' ? t.priceLessThan : 
+                       filters.priceType === 'greater' ? t.priceGreaterThan : 
+                       t.priceEqual}
+                    </label>
+                    <input
+                      type="number"
+                      value={filters.priceValue}
+                      onChange={(e) => handleFilterChange('priceValue', e.target.value)}
+                      placeholder={language === 'he' ? 'סכום' : 'Amount'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Filter Actions */}
+              <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
+                <button
+                  onClick={handleApplyFilters}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  {t.applyFilters}
+                </button>
+                <button
+                  onClick={handleClearFilters}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  {t.clearFilters}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Projects Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -531,7 +900,7 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
                                 {project.analysis.issues.map((issue, idx) => (
                                   <div key={idx} className="flex items-start gap-2">
                                     <span className="text-red-500 text-xs mt-0.5">●</span>
-                                    <span className="text-xs text-gray-700">{issue}</span>
+                                    <span className="text-xs text-gray-700">{getIssueLabel(issue)}</span>
                                   </div>
                                 ))}
                               </div>
@@ -640,11 +1009,6 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-        <p>© 2025 {language === 'he' ? 'הצעות פרויקטים לקיבוצים' : 'Village Project Proposals'}. {language === 'he' ? 'כל הזכויות שמורות' : 'All rights reserved'}.</p>
-      </footer>
     </div>
   );
 }

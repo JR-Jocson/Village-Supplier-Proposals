@@ -75,11 +75,6 @@ export default function HomePage() {
           </p>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="py-6 text-center text-sm text-gray-400">
-        <p>{t.footer}</p>
-      </footer>
     </div>
   );
 }

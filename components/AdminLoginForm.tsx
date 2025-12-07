@@ -153,11 +153,6 @@ export default function AdminLoginForm() {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="py-6 text-center text-sm text-gray-400">
-        <p>© 2025 {language === 'he' ? 'הצעות פרויקטים לקיבוצים' : 'Village Project Proposals'}. {language === 'he' ? 'כל הזכויות שמורות' : 'All rights reserved'}.</p>
-      </footer>
     </div>
   );
 }
