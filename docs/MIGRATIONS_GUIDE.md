@@ -157,3 +157,5 @@ This gives you type safety + working migrations!
 **Question:** Can we make migrations without Prisma working?  
 **Answer:** YES! Use Supabase migration tools instead. They work perfectly and are actually better for Supabase projects.
 
+
+

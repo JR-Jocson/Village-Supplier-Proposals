@@ -93,3 +93,45 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
 
+/**
+ * Verify admin session from request
+ */
+export async function verifyAdminSession(request: Request): Promise<AdminSession | null> {
+  // For Next.js API routes, we need to extract cookies differently
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) {
+    return null;
+  }
+
+  // Parse cookies manually
+  const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>);
+
+  const sessionCookie = cookies['admin_session'];
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(decodeURIComponent(sessionCookie)) as AdminSession;
+    
+    // Verify the user still exists and is an admin
+    const { data: user, error } = await supabaseServer
+      .from('User')
+      .select('id, email, name, role')
+      .eq('id', session.userId)
+      .single();
+
+    if (error || !user || user.role !== 'admin') {
+      return null;
+    }
+
+    return session;
+  } catch {
+    return null;
+  }
+}
+
