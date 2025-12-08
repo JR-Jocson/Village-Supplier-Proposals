@@ -37,9 +37,9 @@ const villages = [
 
 const translations = {
   he: {
-    label: 'בחר קיבוץ',
-    placeholder: 'חפש קיבוץ...',
-    selected: 'קיבוץ נבחר:',
+    label: 'בחר ישוב',
+    placeholder: 'חפש ישוב...',
+    selected: 'ישוב נבחר:',
     noResults: 'לא נמצאו תוצאות',
   },
   en: {

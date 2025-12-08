@@ -31,7 +31,7 @@ const translations = {
     
     // Projects table
     projectsOverview: 'סקירת פרויקטים',
-    kibbutz: 'קיבוץ',
+    kibbutz: 'ישוב',
     projectName: 'שם הפרויקט',
     submitter: 'שם מגיש',
     price: 'מחיר',
@@ -68,7 +68,7 @@ const translations = {
     
     // Filters
     filters: 'סינון',
-    filterByKibbutz: 'סינון לפי קיבוץ',
+    filterByKibbutz: 'סינון לפי ישוב',
     searchProjectName: 'חיפוש לפי שם פרויקט',
     searchSubmitter: 'חיפוש לפי שם מגיש',
     filterByPrice: 'סינון לפי מחיר',
@@ -81,7 +81,7 @@ const translations = {
     priceEqual: 'שווה ל-',
     clearFilters: 'נקה סינון',
     applyFilters: 'החל סינון',
-    allKibbutzim: 'כל הקיבוצים',
+    allKibbutzim: 'כל הישובים',
     allAIStatuses: 'כל הסטטוסים',
     
     // Issue Types
@@ -90,7 +90,7 @@ const translations = {
     issueMissingAuth: 'חסר חתימה/חותמת ועדה',
     issueInsufficientBids: 'מספר הצעות לא מספיק',
     issueNoSummary: 'חסר סיכום',
-    issueBadEntity: 'ישות חיוב שגויה (שם קיבוץ שגוי)',
+    issueBadEntity: 'ישות חיוב שגויה (שם ישוב שגוי)',
   },
   en: {
     dashboard: 'Admin Dashboard',
