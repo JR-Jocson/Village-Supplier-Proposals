@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create project in database using Supabase client
+    // Set invoicePrice to totalProjectCost if available, otherwise use the old invoicePrice field (for backward compatibility)
+    const finalInvoicePrice = totalProjectCost || invoicePrice;
     const { data: project, error: projectError } = await supabaseServer
       .from('Project')
       .insert({
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
         submitterPhone,
         additionalNotes: additionalNotes || null,
         totalProjectCost: totalProjectCost || invoicePrice, // Use totalProjectCost if available, fallback to invoicePrice for backward compatibility
-        invoicePrice, // Keep for backward compatibility
+        invoicePrice: finalInvoicePrice, // Fill invoicePrice with totalProjectCost (kept for backward compatibility)
         laApproval,
         avivaApproval,
         status: 'draft',
