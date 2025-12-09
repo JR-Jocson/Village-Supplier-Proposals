@@ -305,7 +305,7 @@ export default function ProposalUpload({
         {invoices.map((invoice, invoiceIndex) => {
           const requirements = getInvoiceRequirements(invoice.price);
           const proposals = invoiceProposals.get(invoiceIndex) || [];
-          const tender = invoiceTenders.get(invoiceIndex);
+          const tender = invoiceTenders.get(invoiceIndex) ?? null;
 
           return (
             <div key={invoiceIndex} className="border border-gray-200 rounded-2xl p-6 space-y-6">
