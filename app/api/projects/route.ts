@@ -325,7 +325,10 @@ export async function POST(request: NextRequest) {
       success: true,
       projectId: project.id,
       invoicesCreated: invoiceRecords.length,
-      filesUploaded: projectFiles.length + invoiceRecords.reduce((sum, inv) => sum + invoices.find(i => i.price === inv.price)?.proposals.length || 0, 0),
+      filesUploaded: projectFiles.length + invoiceRecords.reduce((sum, inv) => {
+        const invoice = invoices.find(i => i.price === inv.price);
+        return sum + (invoice?.proposals.length ?? 0);
+      }, 0),
     });
 
   } catch (error) {
