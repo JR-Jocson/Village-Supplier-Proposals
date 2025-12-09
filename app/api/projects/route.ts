@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { supabaseServer } from '@/lib/supabase-server';
 
 const STORAGE_BUCKET = 'projects'; // Bucket name for storing project files
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
     const submitterEmail = formData.get('submitterEmail') as string;
     const submitterPhone = formData.get('submitterPhone') as string;
     const additionalNotes = formData.get('additionalNotes') as string | null;
+    const totalProjectCost = formData.get('totalProjectCost') ? parseFloat(formData.get('totalProjectCost') as string) : null;
+    // Keep invoicePrice for backward compatibility (deprecated)
     const invoicePrice = formData.get('invoicePrice') ? parseFloat(formData.get('invoicePrice') as string) : null;
     const laApproval = formData.get('laApproval') === 'true' ? true : formData.get('laApproval') === 'false' ? false : null;
     const avivaApproval = formData.get('avivaApproval') === 'true' ? true : formData.get('avivaApproval') === 'false' ? false : null;
@@ -41,7 +44,8 @@ export async function POST(request: NextRequest) {
         submitterEmail,
         submitterPhone,
         additionalNotes: additionalNotes || null,
-        invoicePrice,
+        totalProjectCost: totalProjectCost || invoicePrice, // Use totalProjectCost if available, fallback to invoicePrice for backward compatibility
+        invoicePrice, // Keep for backward compatibility
         laApproval,
         avivaApproval,
         status: 'draft',
@@ -65,75 +69,226 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Collect all files to upload (parallel processing)
-    const filesToUpload: Array<{
+    // Extract invoices with their prices and files
+    const invoices: Array<{
       file: File;
-      type: 'invoice' | 'proposal' | 'tender' | 'committee_approval' | 'charge_notice';
-      index?: number;
+      price: number;
+      proposals: File[];
+      tender?: File;
+    }> = [];
+
+    let invoiceIndex = 0;
+    while (formData.has(`invoice_${invoiceIndex}_file`)) {
+      const invoiceFile = formData.get(`invoice_${invoiceIndex}_file`) as File;
+      const invoicePriceStr = formData.get(`invoice_${invoiceIndex}_price`) as string;
+      
+      if (!invoiceFile) {
+        throw new Error(`Invoice file missing for invoice ${invoiceIndex}`);
+      }
+      
+      if (!invoicePriceStr) {
+        throw new Error(`Invoice price missing for invoice ${invoiceIndex}`);
+      }
+      
+      const price = parseFloat(invoicePriceStr);
+      if (isNaN(price) || price <= 0) {
+        throw new Error(`Invalid invoice price for invoice ${invoiceIndex}: ${invoicePriceStr}`);
+      }
+      
+      const proposals: File[] = [];
+      let proposalIndex = 0;
+      
+      // Extract proposals for this invoice
+      while (formData.has(`invoice_${invoiceIndex}_proposal_${proposalIndex}`)) {
+        const proposalFile = formData.get(`invoice_${invoiceIndex}_proposal_${proposalIndex}`) as File;
+        if (proposalFile) {
+          proposals.push(proposalFile);
+        }
+        proposalIndex++;
+      }
+      
+      // Extract tender for this invoice (if exists)
+      const tenderFile = formData.get(`invoice_${invoiceIndex}_tender`) as File | null;
+      
+      invoices.push({
+        file: invoiceFile,
+        price,
+        proposals,
+        tender: tenderFile || undefined,
+      });
+      invoiceIndex++;
+    }
+    
+    // Validate that we have at least one invoice
+    if (invoices.length === 0) {
+      throw new Error('At least one invoice is required');
+    }
+    
+    console.log(`Processing ${invoices.length} invoice(s)`);
+
+    // If no invoices found in new format, try old format for backward compatibility
+    if (invoices.length === 0) {
+      // Old format: invoiceFile_0, invoiceFile_1, etc.
+      let oldInvoiceIndex = 0;
+      while (formData.has(`invoiceFile_${oldInvoiceIndex}`)) {
+        const invoiceFile = formData.get(`invoiceFile_${oldInvoiceIndex}`) as File;
+        if (invoiceFile) {
+          invoices.push({
+            file: invoiceFile,
+            price: invoicePrice || 0, // Use project-level price as fallback
+            proposals: [],
+          });
+        }
+        oldInvoiceIndex++;
+      }
+    }
+
+    // Create Invoice records and upload invoice files
+    const invoiceRecords: Array<{ id: string; price: number }> = [];
+    for (let i = 0; i < invoices.length; i++) {
+      const invoice = invoices[i];
+      const invoiceId = randomUUID();
+      
+      console.log(`Creating invoice ${i + 1}/${invoices.length} with price: ${invoice.price}`);
+      
+      // Create Invoice record
+      const now = new Date().toISOString();
+      const { data: invoiceData, error: invoiceError } = await supabaseServer
+        .from('Invoice')
+        .insert({
+          id: invoiceId,
+          projectId: project.id,
+          price: invoice.price,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) {
+        console.error('Error creating invoice:', invoiceError);
+        console.error('Invoice data:', { id: invoiceId, projectId: project.id, price: invoice.price });
+        throw new Error(`Failed to create invoice record: ${invoiceError.message || JSON.stringify(invoiceError)}`);
+      }
+
+      if (!invoiceData) {
+        throw new Error('Invoice was not created but no error was returned');
+      }
+
+      invoiceRecords.push({ id: invoiceId, price: invoice.price });
+
+      // Upload invoice file
+      const invoiceFilePath = await uploadFile(invoice.file, project.id, 'invoice', i);
+      if (invoiceFilePath) {
+        const { error: fileError } = await supabaseServer
+          .from('ProjectFile')
+          .insert({
+            projectId: project.id,
+            invoiceId: invoiceId,
+            fileName: invoice.file.name,
+            filePath: invoiceFilePath,
+            fileType: 'invoice',
+            fileSize: invoice.file.size,
+            mimeType: invoice.file.type,
+          });
+
+        if (fileError) {
+          console.error('Error creating invoice file record:', fileError);
+        }
+      }
+
+      // Upload proposal files for this invoice
+      for (let j = 0; j < invoice.proposals.length; j++) {
+        const proposalFile = invoice.proposals[j];
+        const proposalFilePath = await uploadFile(proposalFile, project.id, 'proposal', j);
+        if (proposalFilePath) {
+          const { error: fileError } = await supabaseServer
+            .from('ProjectFile')
+            .insert({
+              projectId: project.id,
+              invoiceId: invoiceId,
+              fileName: proposalFile.name,
+              filePath: proposalFilePath,
+              fileType: 'proposal',
+              fileSize: proposalFile.size,
+              mimeType: proposalFile.type,
+              proposalIndex: j, // 0-indexed: 0 = first proposal, 1 = second, etc.
+            });
+
+          if (fileError) {
+            console.error('Error creating proposal file record:', fileError);
+          }
+        }
+      }
+
+      // Upload tender file for this invoice (if exists)
+      if (invoice.tender) {
+        const tenderFilePath = await uploadFile(invoice.tender, project.id, 'tender');
+        if (tenderFilePath) {
+          const { error: fileError } = await supabaseServer
+            .from('ProjectFile')
+            .insert({
+              projectId: project.id,
+              invoiceId: invoiceId,
+              fileName: invoice.tender.name,
+              filePath: tenderFilePath,
+              fileType: 'tender',
+              fileSize: invoice.tender.size,
+              mimeType: invoice.tender.type,
+            });
+
+          if (fileError) {
+            console.error('Error creating tender file record:', fileError);
+          }
+        }
+      }
+    }
+
+    // Upload project-level files (committee approval, charge notice)
+    const projectFiles: Array<{
+      fileName: string;
+      filePath: string;
+      fileType: string;
+      fileSize: number;
+      mimeType: string;
     }> = [];
 
     // Committee approval file
     const committeeApprovalFile = formData.get('committeeApprovalFile') as File | null;
     if (committeeApprovalFile) {
-      filesToUpload.push({ file: committeeApprovalFile, type: 'committee_approval' });
-    }
-
-    // Invoice files (multiple)
-    let invoiceIndex = 0;
-    while (formData.has(`invoiceFile_${invoiceIndex}`)) {
-      const invoiceFile = formData.get(`invoiceFile_${invoiceIndex}`) as File;
-      if (invoiceFile) {
-        filesToUpload.push({ file: invoiceFile, type: 'invoice', index: invoiceIndex });
+      const filePath = await uploadFile(committeeApprovalFile, project.id, 'committee_approval');
+      if (filePath) {
+        projectFiles.push({
+          fileName: committeeApprovalFile.name,
+          filePath,
+          fileType: 'committee_approval',
+          fileSize: committeeApprovalFile.size,
+          mimeType: committeeApprovalFile.type,
+        });
       }
-      invoiceIndex++;
-    }
-
-    // Proposal files
-    let proposalIndex = 0;
-    while (formData.has(`proposalFile_${proposalIndex}`)) {
-      const proposalFile = formData.get(`proposalFile_${proposalIndex}`) as File;
-      if (proposalFile) {
-        filesToUpload.push({ file: proposalFile, type: 'proposal', index: proposalIndex });
-      }
-      proposalIndex++;
-    }
-
-    // Tender file (if exists)
-    const tenderFile = formData.get('tenderFile') as File | null;
-    if (tenderFile) {
-      filesToUpload.push({ file: tenderFile, type: 'tender' });
     }
 
     // Charge notice file (if exists)
     const chargeNoticeFile = formData.get('chargeNoticeFile') as File | null;
     if (chargeNoticeFile) {
-      filesToUpload.push({ file: chargeNoticeFile, type: 'charge_notice' });
+      const filePath = await uploadFile(chargeNoticeFile, project.id, 'charge_notice');
+      if (filePath) {
+        projectFiles.push({
+          fileName: chargeNoticeFile.name,
+          filePath,
+          fileType: 'charge_notice',
+          fileSize: chargeNoticeFile.size,
+          mimeType: chargeNoticeFile.type,
+        });
+      }
     }
 
-    // Upload all files in parallel
-    const uploadPromises = filesToUpload.map(async ({ file, type, index }) => {
-      const filePath = await uploadFile(file, project.id, type, index);
-      if (filePath) {
-        return {
-          fileName: file.name,
-          filePath,
-          fileType: type,
-          fileSize: file.size,
-          mimeType: file.type,
-        };
-      }
-      return null;
-    });
-
-    const uploadResults = await Promise.all(uploadPromises);
-    const uploadedFiles = uploadResults.filter((result): result is NonNullable<typeof result> => result !== null);
-
-    // Create ProjectFile records in database
-    if (uploadedFiles.length > 0) {
+    // Create ProjectFile records for project-level files
+    if (projectFiles.length > 0) {
       const { error: filesError } = await supabaseServer
         .from('ProjectFile')
         .insert(
-          uploadedFiles.map(file => ({
+          projectFiles.map(file => ({
             projectId: project.id,
             fileName: file.fileName,
             filePath: file.filePath,
@@ -161,7 +316,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get public URLs for all uploaded files
-    const fileUrls = await getFileUrls(project.id, uploadedFiles);
+    const fileUrls = await getFileUrls(project.id, invoiceRecords);
 
     // Send to n8n grader workflow
     await sendToGraderWorkflow(project.id, projectName, fileUrls);
@@ -169,28 +324,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       projectId: project.id,
-      filesUploaded: uploadedFiles.length,
+      invoicesCreated: invoiceRecords.length,
+      filesUploaded: projectFiles.length + invoiceRecords.reduce((sum, inv) => sum + invoices.find(i => i.price === inv.price)?.proposals.length || 0, 0),
     });
 
   } catch (error) {
     console.error('Error creating project:', error);
     
     // Provide detailed error information
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = {
-      message: errorMessage,
-      name: error instanceof Error ? error.name : 'Error',
-      stack: error instanceof Error ? error.stack : undefined,
-    };
+    let errorMessage = 'Unknown error';
+    let errorDetails: any = {};
+    
+    if (error instanceof Error) {
+      errorMessage = error.message || 'Unknown error';
+      errorDetails = {
+        message: error.message,
+        name: error.name,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      };
+    } else if (typeof error === 'object' && error !== null) {
+      errorDetails = error;
+      errorMessage = (error as any).message || JSON.stringify(error);
+    } else {
+      errorMessage = String(error);
+    }
     
     console.error('Full error details:', errorDetails);
+    console.error('Error message:', errorMessage);
+    
+    // Always return a properly formatted error response
+    const errorResponse = {
+      error: 'Failed to create project',
+      details: errorMessage,
+    };
+    
+    // Only include debug info in development
+    if (process.env.NODE_ENV === 'development') {
+      (errorResponse as any).debugInfo = errorDetails;
+    }
     
     return NextResponse.json(
-      { 
-        error: 'Failed to create project', 
-        details: errorMessage,
-        debugInfo: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-      },
+      errorResponse,
       { status: 500 }
     );
   }
@@ -236,23 +410,33 @@ async function uploadFile(
 
 async function getFileUrls(
   projectId: string,
-  uploadedFiles: Array<{
-    fileName: string;
-    filePath: string;
-    fileType: string;
-    fileSize: number;
-    mimeType: string;
-  }>
+  invoiceRecords: Array<{ id: string; price: number }>
 ): Promise<{
   committeeApprovalUrl: string;
   chargeNoticeUrl: string;
   invoiceUrls: string[];
   proposalUrls: string[];
 }> {
-  const committeeApprovalFile = uploadedFiles.find(f => f.fileType === 'committee_approval');
-  const chargeNoticeFile = uploadedFiles.find(f => f.fileType === 'charge_notice');
-  const invoiceFiles = uploadedFiles.filter(f => f.fileType === 'invoice');
-  const proposalFiles = uploadedFiles.filter(f => f.fileType === 'proposal');
+  // Get all project files
+  const { data: projectFiles, error } = await supabaseServer
+    .from('ProjectFile')
+    .select('*')
+    .eq('projectId', projectId);
+
+  if (error || !projectFiles) {
+    console.error('Error fetching project files:', error);
+    return {
+      committeeApprovalUrl: '',
+      chargeNoticeUrl: '',
+      invoiceUrls: [],
+      proposalUrls: [],
+    };
+  }
+
+  const committeeApprovalFile = projectFiles.find(f => f.fileType === 'committee_approval');
+  const chargeNoticeFile = projectFiles.find(f => f.fileType === 'charge_notice');
+  const invoiceFiles = projectFiles.filter(f => f.fileType === 'invoice');
+  const proposalFiles = projectFiles.filter(f => f.fileType === 'proposal');
 
   // Get signed URLs for private files (valid for 1 year)
   const getSignedUrl = async (filePath: string): Promise<string> => {
@@ -329,4 +513,3 @@ async function sendToGraderWorkflow(
     // The project is already created and files uploaded successfully
   }
 }
-

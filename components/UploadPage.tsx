@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useLanguage } from './LanguageProvider';
 import VillageSelector from './VillageSelector';
 import LocalCommitteeApproval from './LocalCommitteeApproval';
+import InvoiceUploadStep from './InvoiceUploadStep';
+import InvoicePriceInput from './InvoicePriceInput';
 import ProposalUpload from './ProposalUpload';
 
 const translations = {
@@ -20,8 +22,9 @@ const translations = {
     projectNameLabel: 'שם הפרויקט כפי שמופיע באישור ועדה מקומית',
     projectNamePlaceholder: 'הזן את שם הפרויקט',
     projectNameRequired: 'שם הפרויקט הוא שדה חובה',
-    projectPrice: 'סכום הפרויקט',
-    projectPricePlaceholder: 'הזן את הסכום הכולל',
+    projectPrice: 'סכום הפרויקט הכולל',
+    projectPricePlaceholder: 'הזן את הסכום הכולל של הפרויקט',
+    projectPriceHelp: 'זהו הסכום הכולל של הפרויקט. לאחר מכן תתבקשו להזין את הסכום של כל חשבונית בנפרד.',
     requiredField: 'שדה חובה',
     invalidEmail: 'כתובת אימייל לא תקינה',
     invalidPhone: 'מספר טלפון לא תקין',
@@ -43,8 +46,9 @@ const translations = {
     projectNameLabel: 'Project name as written in Local Committee Approval',
     projectNamePlaceholder: 'Enter the project name',
     projectNameRequired: 'Project name is required',
-    projectPrice: 'Project Amount',
-    projectPricePlaceholder: 'Enter the total amount',
+    projectPrice: 'Total Project Cost',
+    projectPricePlaceholder: 'Enter the total project cost',
+    projectPriceHelp: 'This is the total cost of the project. You will be asked to enter the amount for each invoice separately.',
     requiredField: 'Required field',
     invalidEmail: 'Invalid email address',
     invalidPhone: 'Invalid phone number',
@@ -55,17 +59,21 @@ const translations = {
   },
 };
 
+type Step = 'info' | 'committee' | 'invoices' | 'invoicePrices' | 'proposals';
+
 export default function UploadPage() {
   const { language } = useLanguage();
   const t = translations[language];
+  const [currentStep, setCurrentStep] = useState<Step>('info');
   const [selectedVillage, setSelectedVillage] = useState<string>('');
   const [committeeApprovalFile, setCommitteeApprovalFile] = useState<File | null>(null);
+  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
+  const [invoicesWithPrices, setInvoicesWithPrices] = useState<Array<{ file: File; price: number }>>([]);
   const [submitterName, setSubmitterName] = useState<string>('');
   const [submitterEmail, setSubmitterEmail] = useState<string>('');
   const [submitterPhone, setSubmitterPhone] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
-  const [projectPrice, setProjectPrice] = useState<string>('');
-  const [initialPriceThreshold, setInitialPriceThreshold] = useState<number | null>(null);
+  const [totalProjectCost, setTotalProjectCost] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     email?: string;
@@ -76,56 +84,52 @@ export default function UploadPage() {
 
   const handleCommitteeApprovalUploaded = (file: File) => {
     setCommitteeApprovalFile(file);
-    // Store the initial price threshold when moving to proposals step
-    const price = parseFloat(projectPrice);
-    if (price < 5500) {
-      setInitialPriceThreshold(1);
-    } else if (price < 159000) {
-      setInitialPriceThreshold(2);
-    } else {
-      setInitialPriceThreshold(3);
-    }
+    setCurrentStep('invoices');
   };
 
   const handleBackFromCommitteeApproval = () => {
     setCommitteeApprovalFile(null);
+    setCurrentStep('info');
+  };
+
+  const handleInvoicesUploaded = (files: File[]) => {
+    setInvoiceFiles(files);
+    setCurrentStep('invoicePrices');
+  };
+
+  const handleBackFromInvoices = () => {
+    setInvoiceFiles([]);
+    setCurrentStep('committee');
+  };
+
+  const handleInvoicePricesEntered = (invoices: Array<{ file: File; price: number }>) => {
+    setInvoicesWithPrices(invoices);
+    setCurrentStep('proposals');
+  };
+
+  const handleBackFromInvoicePrices = () => {
+    setInvoicesWithPrices([]);
+    setCurrentStep('invoices');
   };
 
   const handleReset = () => {
+    setCurrentStep('info');
     setCommitteeApprovalFile(null);
+    setInvoiceFiles([]);
+    setInvoicesWithPrices([]);
     setSelectedVillage('');
     setSubmitterName('');
     setSubmitterEmail('');
     setSubmitterPhone('');
     setProjectName('');
-    setProjectPrice('');
-    setInitialPriceThreshold(null);
+    setTotalProjectCost('');
     setFormErrors({});
   };
 
   const handleBackFromProposals = () => {
-    // Go back to Step 1 (kibbutz selection)
-    setCommitteeApprovalFile(null);
-    setInitialPriceThreshold(null);
+    setInvoicesWithPrices([]);
+    setCurrentStep('invoicePrices');
   };
-
-  // Calculate requirements based on price
-  const getRequirements = () => {
-    const price = parseFloat(projectPrice);
-    if (isNaN(price) || price <= 0) {
-      return { proposals: 0, tender: false, message: '' };
-    }
-    
-    if (price < 5500) {
-      return { proposals: 1, tender: false, message: t.requirement1 };
-    } else if (price < 159000) {
-      return { proposals: 2, tender: false, message: t.requirement2 };
-    } else {
-      return { proposals: 4, tender: true, message: t.requirement3 };
-    }
-  };
-
-  const requirements = getRequirements();
 
   const validateContactInfo = () => {
     const errors: { name?: string; email?: string; phone?: string; projectName?: string; price?: string } = {};
@@ -150,10 +154,10 @@ export default function UploadPage() {
       errors.projectName = t.projectNameRequired;
     }
 
-    if (!projectPrice.trim()) {
+    if (!totalProjectCost.trim()) {
       errors.price = t.requiredField;
     } else {
-      const price = parseFloat(projectPrice);
+      const price = parseFloat(totalProjectCost);
       if (isNaN(price) || price <= 0) {
         errors.price = t.invalidPrice;
       }
@@ -192,7 +196,7 @@ export default function UploadPage() {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 py-16">
-        {committeeApprovalFile === null ? (
+        {currentStep === 'info' && (
           <div className="space-y-12">
             {/* Village Selector and Contact Information */}
             <div className="max-w-2xl mx-auto">
@@ -332,7 +336,7 @@ export default function UploadPage() {
                       </p>
                     </div>
 
-                    {/* Project Price */}
+                    {/* Total Project Cost */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-2">
                         {t.projectPrice} <span className="text-red-500">*</span>
@@ -342,9 +346,9 @@ export default function UploadPage() {
                           type="number"
                           step="0.01"
                           min="0"
-                          value={projectPrice}
+                          value={totalProjectCost}
                           onChange={(e) => {
-                            setProjectPrice(e.target.value);
+                            setTotalProjectCost(e.target.value);
                             if (formErrors.price) {
                               setFormErrors({ ...formErrors, price: undefined });
                             }
@@ -364,9 +368,9 @@ export default function UploadPage() {
                       {formErrors.price && (
                         <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>
                       )}
-                      {!formErrors.price && projectPrice && requirements.message && (
-                        <p className="mt-2 text-sm text-blue-600 font-medium">
-                          {requirements.message}
+                      {!formErrors.price && totalProjectCost && (
+                        <p className="mt-2 text-sm text-gray-600">
+                          {t.projectPriceHelp}
                         </p>
                       )}
                     </div>
@@ -376,20 +380,36 @@ export default function UploadPage() {
             </div>
 
             {/* Local Committee Approval Upload - only show if village is selected and all contact info including price is valid */}
-            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectName.trim() && projectPrice.trim() && !formErrors.price && (
+            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectName.trim() && totalProjectCost.trim() && !formErrors.price && (
               <LocalCommitteeApproval 
                 onApprovalUploaded={handleCommitteeApprovalUploaded}
                 onBack={handleBackFromCommitteeApproval}
-                projectPrice={parseFloat(projectPrice)}
-                requirements={requirements}
+                totalProjectCost={parseFloat(totalProjectCost)}
               />
             )}
           </div>
-        ) : (
+        )}
+
+        {currentStep === 'invoices' && (
+          <InvoiceUploadStep
+            onInvoicesUploaded={handleInvoicesUploaded}
+            onBack={handleBackFromInvoices}
+          />
+        )}
+
+        {currentStep === 'invoicePrices' && (
+          <InvoicePriceInput
+            invoiceFiles={invoiceFiles}
+            onPricesEntered={handleInvoicePricesEntered}
+            onBack={handleBackFromInvoicePrices}
+          />
+        )}
+
+        {currentStep === 'proposals' && (
           <ProposalUpload 
-            committeeApprovalFile={committeeApprovalFile}
-            projectPrice={parseFloat(projectPrice)}
-            initialPriceThreshold={initialPriceThreshold}
+            committeeApprovalFile={committeeApprovalFile!}
+            totalProjectCost={parseFloat(totalProjectCost)}
+            invoices={invoicesWithPrices}
             selectedVillage={selectedVillage}
             projectName={projectName}
             submitterName={submitterName}

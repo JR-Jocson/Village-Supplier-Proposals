@@ -1,14 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from './LanguageProvider';
 
 const translations = {
   he: {
-    title: 'העלאת חשבוניות והצעות מחיר',
-    subtitle: 'העלו את החשבוניות והצעות המחיר שלכם',
-    invoice: 'חשבונית מס',
-    invoices: 'חשבוניות מס',
+    title: 'העלאת הצעות מחיר ומסמכי מכרז',
+    subtitle: 'העלו את הצעות המחיר ומסמכי המכרז עבור כל חשבונית',
+    invoice: 'חשבונית',
     proposal: 'הצעת מחיר',
     proposals: 'הצעות מחיר',
     tenderDoc: 'מסמך מכרז',
@@ -18,12 +17,10 @@ const translations = {
     submit: 'שלח הצעה',
     back: 'חזרה לעריכה',
     startOver: 'התחל מחדש',
-    invoiceInstructions: 'העלו לפחות חשבונית מס אחת',
     proposalInstructions1: 'הצעת מחיר אחת נדרשת עבור סכומים מתחת ל-5,500₪',
     proposalInstructions2: 'שתי הצעות מחיר נדרשות עבור סכומים מתחת ל-159,000₪',
     proposalInstructions3: '4 הצעות מחיר ומסמך מכרז נדרשים עבור סכומים מעל 159,000₪',
-    priceDetected: 'סכום הפרויקט:',
-    priceChangedWarning: 'שים לב: שינוי המחיר ידרוש העלאת קבצים מחדש',
+    invoicePrice: 'מחיר החשבונית',
     additionalDocuments: 'מסמכים נוספים',
     additionalNotes: 'הערות נוספות',
     additionalNotesLabel: 'הערות נוספות (אופציונלי)',
@@ -34,12 +31,12 @@ const translations = {
     avivaApproval: 'התקבל אישור אביבה (לבניינים ציבוריים)',
     yes: 'כן',
     no: 'לא',
+    allFilesRequired: 'יש להעלות את כל הקבצים הנדרשים',
   },
   en: {
-    title: 'Upload Invoices and Proposals',
-    subtitle: 'Upload your tax invoices and price proposals',
-    invoice: 'Tax Invoice',
-    invoices: 'Tax Invoices',
+    title: 'Upload Proposals and Tender Documents',
+    subtitle: 'Upload price proposals and tender documents for each invoice',
+    invoice: 'Invoice',
     proposal: 'Price Proposal',
     proposals: 'Price Proposals',
     tenderDoc: 'Tender Document',
@@ -49,12 +46,10 @@ const translations = {
     submit: 'Submit Proposal',
     back: 'Back to Edit',
     startOver: 'Start Over',
-    invoiceInstructions: 'Upload at least one tax invoice',
     proposalInstructions1: 'One price proposal required for amounts below ₪5,500',
     proposalInstructions2: 'Two price proposals required for amounts below ₪159,000',
     proposalInstructions3: '4 price proposals and tender document required for amounts above ₪159,000',
-    priceDetected: 'Project Amount:',
-    priceChangedWarning: 'Note: Changing the price will require re-uploading files',
+    invoicePrice: 'Invoice Price',
     additionalDocuments: 'Additional Documents',
     additionalNotes: 'Additional Notes',
     additionalNotesLabel: 'Additional Notes (Optional)',
@@ -65,13 +60,19 @@ const translations = {
     avivaApproval: "Aviva's approval (for public buildings) received",
     yes: 'Yes',
     no: 'No',
+    allFilesRequired: 'All required files must be uploaded',
   },
 };
 
+interface InvoiceData {
+  file: File;
+  price: number;
+}
+
 interface ProposalUploadProps {
   committeeApprovalFile: File;
-  projectPrice: number;
-  initialPriceThreshold: number | null;
+  totalProjectCost: number;
+  invoices: InvoiceData[];
   selectedVillage: string;
   projectName: string;
   submitterName: string;
@@ -81,10 +82,21 @@ interface ProposalUploadProps {
   onReset: () => void;
 }
 
+// Calculate requirements based on invoice price
+function getInvoiceRequirements(price: number) {
+  if (price < 5500) {
+    return { proposals: 1, tender: false, message: 'proposalInstructions1' };
+  } else if (price < 159000) {
+    return { proposals: 2, tender: false, message: 'proposalInstructions2' };
+  } else {
+    return { proposals: 4, tender: true, message: 'proposalInstructions3' };
+  }
+}
+
 export default function ProposalUpload({ 
   committeeApprovalFile,
-  projectPrice,
-  initialPriceThreshold,
+  totalProjectCost,
+  invoices,
   selectedVillage,
   projectName,
   submitterName, 
@@ -96,69 +108,40 @@ export default function ProposalUpload({
   const { language } = useLanguage();
   const t = translations[language];
 
-  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
-  const [proposalFiles, setProposalFiles] = useState<(File | null)[]>([]);
-  const [tenderFile, setTenderFile] = useState<File | null>(null);
+  // State for each invoice's proposals and tender
+  const [invoiceProposals, setInvoiceProposals] = useState<Map<number, (File | null)[]>>(new Map());
+  const [invoiceTenders, setInvoiceTenders] = useState<Map<number, File | null>>(new Map());
   const [chargeNoticeFile, setChargeNoticeFile] = useState<File | null>(null);
   const [additionalNotes, setAdditionalNotes] = useState<string>('');
   const [laApproval, setLaApproval] = useState<boolean | null>(null);
   const [avivaApproval, setAvivaApproval] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [showPriceChangeWarning, setShowPriceChangeWarning] = useState<boolean>(false);
 
-  // Determine requirements based on provided price
-  const getRequirements = () => {
-    if (projectPrice < 5500) {
-      return { proposals: 1, tender: false, message: t.proposalInstructions1, threshold: 1 };
-    } else if (projectPrice < 159000) {
-      return { proposals: 2, tender: false, message: t.proposalInstructions2, threshold: 2 };
-    } else {
-      return { proposals: 4, tender: true, message: t.proposalInstructions3, threshold: 3 };
-    }
+  // Initialize proposal arrays for each invoice
+  useEffect(() => {
+    const newProposals = new Map<number, (File | null)[]>();
+    invoices.forEach((invoice, index) => {
+      const requirements = getInvoiceRequirements(invoice.price);
+      if (!newProposals.has(index)) {
+        newProposals.set(index, Array(requirements.proposals).fill(null));
+      }
+    });
+    setInvoiceProposals(newProposals);
+  }, [invoices]);
+
+  const handleProposalUpload = (invoiceIndex: number, proposalIndex: number, file: File) => {
+    const newProposals = new Map(invoiceProposals);
+    const invoiceProposalArray = [...(newProposals.get(invoiceIndex) || [])];
+    invoiceProposalArray[proposalIndex] = file;
+    newProposals.set(invoiceIndex, invoiceProposalArray);
+    setInvoiceProposals(newProposals);
   };
 
-  const requirements = getRequirements();
-
-  // Check if price threshold has changed
-  const hasThresholdChanged = initialPriceThreshold !== null && 
-                              initialPriceThreshold !== requirements.threshold;
-
-  // Initialize proposal files array based on requirements
-  // Clear files if threshold changed
-  useState(() => {
-    if (hasThresholdChanged) {
-      // Price threshold changed, clear all proposal files
-      setProposalFiles(Array(requirements.proposals).fill(null));
-      setTenderFile(null);
-      setInvoiceFiles([]);
-      setShowPriceChangeWarning(true);
-    } else if (proposalFiles.length === 0) {
-      // First time, initialize array
-      setProposalFiles(Array(requirements.proposals).fill(null));
-    } else if (proposalFiles.length !== requirements.proposals) {
-      // Threshold changed, resize array
-      setProposalFiles(Array(requirements.proposals).fill(null));
-      setTenderFile(null);
-    }
-  });
-
-  const handleInvoiceUpload = (file: File) => {
-    setInvoiceFiles(prev => [...prev, file]);
-  };
-
-  const removeInvoice = (indexToRemove: number) => {
-    setInvoiceFiles(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  const handleProposalUpload = (index: number, file: File) => {
-    const newFiles = [...proposalFiles];
-    newFiles[index] = file;
-    setProposalFiles(newFiles);
-  };
-
-  const handleTenderUpload = (file: File) => {
-    setTenderFile(file);
+  const handleTenderUpload = (invoiceIndex: number, file: File) => {
+    const newTenders = new Map(invoiceTenders);
+    newTenders.set(invoiceIndex, file);
+    setInvoiceTenders(newTenders);
   };
 
   const handleChargeNoticeUpload = (file: File) => {
@@ -166,15 +149,29 @@ export default function ProposalUpload({
   };
 
   const allFilesUploaded = () => {
-    if (invoiceFiles.length === 0) return false;
-    
-    const proposalsUploaded = proposalFiles.every(file => file !== null);
-    const tenderUploaded = !requirements.tender || tenderFile !== null;
-    return proposalsUploaded && tenderUploaded;
+    // Check each invoice has its required files
+    for (let i = 0; i < invoices.length; i++) {
+      const requirements = getInvoiceRequirements(invoices[i].price);
+      const proposals = invoiceProposals.get(i) || [];
+      
+      // Check all proposals are uploaded
+      if (proposals.length !== requirements.proposals || proposals.some(p => p === null)) {
+        return false;
+      }
+      
+      // Check tender if required
+      if (requirements.tender && !invoiceTenders.get(i)) {
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
-    if (!allFilesUploaded()) return;
+    if (!allFilesUploaded()) {
+      setSubmitError(t.allFilesRequired);
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -187,7 +184,7 @@ export default function ProposalUpload({
       formData.append('submitterName', submitterName);
       formData.append('submitterEmail', submitterEmail);
       formData.append('submitterPhone', submitterPhone);
-      formData.append('invoicePrice', projectPrice.toString());
+      formData.append('totalProjectCost', totalProjectCost.toString());
       
       // Add additional notes if provided
       if (additionalNotes.trim()) {
@@ -197,22 +194,25 @@ export default function ProposalUpload({
       // Add committee approval file
       formData.append('committeeApprovalFile', committeeApprovalFile);
 
-      // Add invoice files
-      invoiceFiles.forEach((file, index) => {
-        formData.append(`invoiceFile_${index}`, file);
-      });
-
-      // Add proposal files
-      proposalFiles.forEach((file, index) => {
-        if (file) {
-          formData.append(`proposalFile_${index}`, file);
+      // Add invoices with prices and their files
+      invoices.forEach((invoice, invoiceIndex) => {
+        formData.append(`invoice_${invoiceIndex}_file`, invoice.file);
+        formData.append(`invoice_${invoiceIndex}_price`, invoice.price.toString());
+        
+        // Add proposals for this invoice
+        const proposals = invoiceProposals.get(invoiceIndex) || [];
+        proposals.forEach((proposalFile, proposalIndex) => {
+          if (proposalFile) {
+            formData.append(`invoice_${invoiceIndex}_proposal_${proposalIndex}`, proposalFile);
+          }
+        });
+        
+        // Add tender for this invoice if exists
+        const tender = invoiceTenders.get(invoiceIndex);
+        if (tender) {
+          formData.append(`invoice_${invoiceIndex}_tender`, tender);
         }
       });
-
-      // Add tender file if exists
-      if (tenderFile) {
-        formData.append('tenderFile', tenderFile);
-      }
 
       // Add charge notice file if exists
       if (chargeNoticeFile) {
@@ -235,15 +235,35 @@ export default function ProposalUpload({
 
       if (!response.ok) {
         let errorMessage = 'Failed to submit project';
+        const status = response.status;
+        
         try {
           const errorData = await response.json();
-          errorMessage = errorData.error || errorData.details || errorMessage;
-          console.error('API Error:', errorData);
+          console.error('API Error Response:', {
+            status,
+            errorData,
+            error: errorData.error,
+            details: errorData.details,
+            debugInfo: errorData.debugInfo,
+          });
+          
+          // Try to get a meaningful error message
+          errorMessage = errorData.details || errorData.error || errorMessage;
+          
+          // If we have debug info in development, include it
+          if (errorData.debugInfo && process.env.NODE_ENV === 'development') {
+            console.error('Debug Info:', errorData.debugInfo);
+            errorMessage += ` (${errorData.debugInfo.message || ''})`;
+          }
         } catch (parseError) {
           // Response wasn't JSON, try to get text
           const errorText = await response.text();
-          console.error('API Error (non-JSON):', errorText);
-          errorMessage = `Server error (${response.status}): ${errorText.substring(0, 100)}`;
+          console.error('API Error (non-JSON):', {
+            status,
+            errorText,
+            parseError,
+          });
+          errorMessage = `Server error (${status}): ${errorText.substring(0, 200)}`;
         }
         throw new Error(errorMessage);
       }
@@ -267,81 +287,76 @@ export default function ProposalUpload({
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
           {t.title}
         </h1>
-        <p className="text-lg text-gray-600 mb-4">
+        <p className="text-lg text-gray-600">
           {t.subtitle}
         </p>
-
-        {/* Price Change Warning */}
-        {showPriceChangeWarning && (
-          <div className="inline-block mb-4 px-6 py-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <p className="text-sm text-yellow-800 font-medium">
-              ⚠️ {t.priceChangedWarning}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Upload Areas */}
       <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 sm:p-12 space-y-8">
         
-        {/* Section 1: Tax Invoices */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">{t.invoices}</h2>
-            <div className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-full">
-              <span className="text-xs font-medium">{t.priceDetected}</span>
-              <span className="text-sm font-bold">
-                ₪{projectPrice.toLocaleString(language === 'he' ? 'he-IL' : 'en-US')}
-              </span>
+        {/* Per-Invoice Sections */}
+        {invoices.map((invoice, invoiceIndex) => {
+          const requirements = getInvoiceRequirements(invoice.price);
+          const proposals = invoiceProposals.get(invoiceIndex) || [];
+          const tender = invoiceTenders.get(invoiceIndex);
+
+          return (
+            <div key={invoiceIndex} className="border border-gray-200 rounded-2xl p-6 space-y-6">
+              {/* Invoice Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {t.invoice} {invoiceIndex + 1}: {invoice.file.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {t.invoicePrice}: ₪{invoice.price.toLocaleString(language === 'he' ? 'he-IL' : 'en-US')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Proposals Section */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">{t.proposals}</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {t[requirements.message as keyof typeof t]}
+                  </p>
+                </div>
+
+                {/* Proposal Upload Slots */}
+                {proposals.map((proposalFile, proposalIndex) => (
+                  <FileUploadSlot
+                    key={`invoice-${invoiceIndex}-proposal-${proposalIndex}`}
+                    label={`${t.proposal} ${proposalIndex + 1}`}
+                    file={proposalFile}
+                    onFileSelect={(file) => handleProposalUpload(invoiceIndex, proposalIndex, file)}
+                    uploadedText={t.uploaded}
+                    dragText={t.dragOrClick}
+                  />
+                ))}
+
+                {/* Tender Document */}
+                {requirements.tender && (
+                  <FileUploadSlot
+                    label={t.tenderDoc}
+                    file={tender}
+                    onFileSelect={(file) => handleTenderUpload(invoiceIndex, file)}
+                    uploadedText={t.uploaded}
+                    dragText={t.dragOrClick}
+                    highlight
+                  />
+                )}
+              </div>
             </div>
-          </div>
-          <p className="text-sm text-gray-600">{t.invoiceInstructions}</p>
-
-          {/* Invoice Upload Slot */}
-          <MultiFileUploadSlot
-            files={invoiceFiles}
-            onFileAdd={handleInvoiceUpload}
-            onFileRemove={removeInvoice}
-            uploadedText={t.uploaded}
-            dragText={t.dragOrClick}
-          />
-        </div>
-
-        {/* Section 2: Price Proposals */}
-        <div className="border-t border-gray-200 pt-8 space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">{t.proposals}</h2>
-          <p className="text-sm text-gray-600">{requirements.message}</p>
-
-          {/* Price Proposals */}
-          {proposalFiles.map((file, index) => (
-            <FileUploadSlot
-              key={`proposal-${index}`}
-              label={`${t.proposal} ${index + 1}`}
-              file={file}
-              onFileSelect={(file) => handleProposalUpload(index, file)}
-              uploadedText={t.uploaded}
-              dragText={t.dragOrClick}
-            />
-          ))}
-
-          {/* Tender Document */}
-          {requirements.tender && (
-            <FileUploadSlot
-              label={t.tenderDoc}
-              file={tenderFile}
-              onFileSelect={handleTenderUpload}
-              uploadedText={t.uploaded}
-              dragText={t.dragOrClick}
-              highlight
-            />
-          )}
-        </div>
+          );
+        })}
 
         {/* Section 3: Additional Documents */}
         <div className="border-t border-gray-200 pt-8 space-y-4">
@@ -481,123 +496,6 @@ export default function ProposalUpload({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-interface MultiFileUploadSlotProps {
-  files: File[];
-  onFileAdd: (file: File) => void;
-  onFileRemove: (index: number) => void;
-  uploadedText: string;
-  dragText: string;
-  disabled?: boolean;
-}
-
-function MultiFileUploadSlot({ 
-  files, 
-  onFileAdd, 
-  onFileRemove, 
-  uploadedText, 
-  dragText,
-  disabled 
-}: MultiFileUploadSlotProps) {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!disabled) setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (disabled) return;
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    droppedFiles.forEach(file => {
-      if (file.type === 'application/pdf') {
-        onFileAdd(file);
-      }
-    });
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    selectedFiles.forEach(file => {
-      if (file.type === 'application/pdf') {
-        onFileAdd(file);
-      }
-    });
-    e.target.value = '';
-  };
-
-  return (
-    <div className="space-y-3">
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 ${
-          isDragging
-            ? 'border-gray-900 bg-gray-50'
-            : 'border-gray-300 hover:border-gray-400'
-        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        <input
-          type="file"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          onChange={handleFileSelect}
-          accept=".pdf"
-          multiple
-          disabled={disabled}
-        />
-
-        <div className="flex items-center gap-3">
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-            />
-          </svg>
-          <p className="text-sm text-gray-600">{dragText}</p>
-        </div>
-      </div>
-
-      {/* Uploaded Files List */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          {files.map((file, index) => (
-            <div
-              key={`${file.name}-${index}`}
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB • {uploadedText}</p>
-              </div>
-              <button
-                onClick={() => onFileRemove(index)}
-                disabled={disabled}
-                className="ms-2 text-red-600 hover:text-red-700 disabled:opacity-50"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

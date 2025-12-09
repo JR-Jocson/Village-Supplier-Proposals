@@ -29,12 +29,14 @@ model Project {
   submitterName   String       // Name of the person who submitted
   submitterEmail  String       // Email of the submitter
   submitterPhone  String       // Phone number of the submitter
-  invoicePrice    Float?       // Detected price from invoice
+  invoicePrice    Float?       // DEPRECATED: Detected price from invoice (kept for backward compatibility)
+  totalProjectCost Float?      // Total cost of the entire project
   additionalNotes String?      // Additional notes from submitter (up to 1000 chars)
   status          String       @default("draft") // draft, submitted, reviewed, etc.
   laApproval      Boolean?     // Whether LA approval was received for the project
   avivaApproval   Boolean?     // Whether Aviva's approval for a public building was received
   files           ProjectFile[]
+  invoices        Invoice[]    // Invoices associated with this project
   analysis        ProjectAnalysis?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -44,13 +46,29 @@ model ProjectFile {
   id          String   @id @default(uuid())
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoiceId   String?  // Link to invoice if file is invoice-specific (proposals, tenders, or invoice file)
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   fileName    String   // Original file name
   filePath    String   // Path in Supabase Storage bucket
   fileType    String   // invoice, proposal, tender, committee_approval, charge_notice
   fileSize    Int      // File size in bytes
   mimeType    String   // MIME type (e.g., application/pdf)
+  proposalIndex Int?   // For proposal files: which proposal number (1, 2, 3, or 4)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([invoiceId])
+}
+
+model Invoice {
+  id          String       @id @default(uuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  price       Float        // Price of this specific invoice
+  files       ProjectFile[] // Files associated with this invoice (invoices, proposals, tenders)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([projectId])
 }

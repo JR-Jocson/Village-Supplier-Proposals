@@ -45,19 +45,13 @@ const translations = {
 interface LocalCommitteeApprovalProps {
   onApprovalUploaded: (file: File) => void;
   onBack: () => void;
-  projectPrice: number;
-  requirements: {
-    proposals: number;
-    tender: boolean;
-    message: string;
-  };
+  totalProjectCost: number;
 }
 
 export default function LocalCommitteeApproval({ 
   onApprovalUploaded,
   onBack,
-  projectPrice,
-  requirements,
+  totalProjectCost,
 }: LocalCommitteeApprovalProps) {
   const { language } = useLanguage();
   const t = translations[language];
@@ -136,19 +130,12 @@ export default function LocalCommitteeApproval({
           {t.subtitle}
         </p>
 
-        {/* Price Badge and Requirements */}
-        <div className="inline-flex flex-col items-center gap-3">
-          <div className="inline-flex items-center gap-3 bg-gray-900 text-white px-6 py-3 rounded-full">
-            <span className="text-sm font-medium">{t.projectAmount}</span>
-            <span className="text-xl font-bold">
-              ₪{projectPrice.toLocaleString(language === 'he' ? 'he-IL' : 'en-US')}
-            </span>
-          </div>
-          {requirements.message && (
-            <p className="text-sm text-gray-600 font-medium">
-              {requirements.message}
-            </p>
-          )}
+        {/* Total Project Cost Badge */}
+        <div className="inline-flex items-center gap-3 bg-gray-900 text-white px-6 py-3 rounded-full">
+          <span className="text-sm font-medium">{t.projectAmount}</span>
+          <span className="text-xl font-bold">
+            ₪{totalProjectCost.toLocaleString(language === 'he' ? 'he-IL' : 'en-US')}
+          </span>
         </div>
       </div>
 
