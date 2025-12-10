@@ -196,7 +196,7 @@ interface Project {
   submitterName: string;
   submitterEmail: string;
   submitterPhone: string;
-  invoicePrice: number | null;
+  totalProjectCost: number | null;
   status: string;
   laApproval: boolean | null;
   avivaApproval: boolean | null;
@@ -856,7 +856,7 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">
-                              {formatCurrency(project.invoicePrice)} {project.invoicePrice ? t.currency : ''}
+                              {formatCurrency(project.totalProjectCost)} {project.totalProjectCost ? t.currency : ''}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">

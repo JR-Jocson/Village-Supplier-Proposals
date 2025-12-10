@@ -56,17 +56,17 @@ export async function GET(request: Request) {
     // Price filters
     if (priceType === 'range') {
       if (priceMin) {
-        query = query.gte('invoicePrice', parseFloat(priceMin));
+        query = query.gte('totalProjectCost', parseFloat(priceMin));
       }
       if (priceMax) {
-        query = query.lte('invoicePrice', parseFloat(priceMax));
+        query = query.lte('totalProjectCost', parseFloat(priceMax));
       }
     } else if (priceType === 'less' && priceValue) {
-      query = query.lt('invoicePrice', parseFloat(priceValue));
+      query = query.lt('totalProjectCost', parseFloat(priceValue));
     } else if (priceType === 'greater' && priceValue) {
-      query = query.gt('invoicePrice', parseFloat(priceValue));
+      query = query.gt('totalProjectCost', parseFloat(priceValue));
     } else if (priceType === 'equal' && priceValue) {
-      query = query.eq('invoicePrice', parseFloat(priceValue));
+      query = query.eq('totalProjectCost', parseFloat(priceValue));
     }
 
     // Order by createdAt
@@ -130,9 +130,9 @@ export async function GET(request: Request) {
       totalProjects: projectsWithRelations.length,
       submittedProjects: projectsWithRelations.filter(p => p.status === 'submitted').length,
       draftProjects: projectsWithRelations.filter(p => p.status === 'draft').length,
-      totalValue: projectsWithRelations.reduce((sum, p) => sum + (p.invoicePrice || 0), 0),
+      totalValue: projectsWithRelations.reduce((sum, p) => sum + (p.totalProjectCost || 0), 0),
       avgValue: projectsWithRelations.length > 0 
-        ? projectsWithRelations.reduce((sum, p) => sum + (p.invoicePrice || 0), 0) / projectsWithRelations.length 
+        ? projectsWithRelations.reduce((sum, p) => sum + (p.totalProjectCost || 0), 0) / projectsWithRelations.length 
         : 0,
       laApprovedCount: projectsWithRelations.filter(p => p.laApproval === true).length,
       avivaApprovedCount: projectsWithRelations.filter(p => p.avivaApproval === true).length,
@@ -202,7 +202,7 @@ export async function GET(request: Request) {
           submitterName: p.submitterName,
           submitterEmail: p.submitterEmail,
           submitterPhone: p.submitterPhone,
-          invoicePrice: p.invoicePrice,
+          totalProjectCost: p.totalProjectCost,
           status: p.status,
           laApproval: p.laApproval,
           avivaApproval: p.avivaApproval,

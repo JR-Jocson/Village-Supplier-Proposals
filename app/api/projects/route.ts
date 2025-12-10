@@ -421,6 +421,7 @@ async function getFileUrls(
   chargeNoticeUrl: string;
   invoiceUrls: string[];
   proposalUrls: string[];
+  invoiceChecks: Array<{ invoicePrice: number; proposalUrls: string }>;
 }> {
   // Get all project files
   const { data: projectFiles, error } = await supabaseServer
@@ -435,6 +436,7 @@ async function getFileUrls(
       chargeNoticeUrl: '',
       invoiceUrls: [],
       proposalUrls: [],
+      invoiceChecks: [],
     };
   }
 
@@ -465,11 +467,37 @@ async function getFileUrls(
     Promise.all(proposalFiles.map(f => getSignedUrl(f.filePath))),
   ]);
 
+  // Build invoice checks array - organize proposals by invoice (exclude tenders)
+  const invoiceChecks: Array<{ invoicePrice: number; proposalUrls: string }> = [];
+  
+  for (const invoiceRecord of invoiceRecords) {
+    // Get proposal files for this invoice (exclude tenders)
+    const invoiceProposalFiles = proposalFiles.filter(
+      f => f.invoiceId === invoiceRecord.id && f.fileType === 'proposal'
+    );
+    
+    // Get signed URLs for proposals of this invoice
+    const invoiceProposalUrls = await Promise.all(
+      invoiceProposalFiles.map(f => getSignedUrl(f.filePath))
+    );
+    
+    // Filter out empty URLs and join with comma
+    const proposalUrlsString = invoiceProposalUrls
+      .filter(url => url !== '')
+      .join(', ');
+    
+    invoiceChecks.push({
+      invoicePrice: invoiceRecord.price,
+      proposalUrls: proposalUrlsString,
+    });
+  }
+
   return {
     committeeApprovalUrl: committeeUrl,
     chargeNoticeUrl: chargeUrl,
     invoiceUrls: invoiceUrls.filter(url => url !== ''),
     proposalUrls: proposalUrls.filter(url => url !== ''),
+    invoiceChecks,
   };
 }
 
@@ -481,6 +509,7 @@ async function sendToGraderWorkflow(
     chargeNoticeUrl: string;
     invoiceUrls: string[];
     proposalUrls: string[];
+    invoiceChecks: Array<{ invoicePrice: number; proposalUrls: string }>;
   }
 ): Promise<void> {
   try {
@@ -491,6 +520,7 @@ async function sendToGraderWorkflow(
       chargeNoticeUrl: fileUrls.chargeNoticeUrl,
       invoiceUrls: fileUrls.invoiceUrls.join(', '),
       proposalUrls: fileUrls.proposalUrls.join(', '),
+      invoiceChecks: fileUrls.invoiceChecks,
     };
 
     console.log('Sending to n8n grader workflow:', payload);
