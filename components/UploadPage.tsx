@@ -22,13 +22,9 @@ const translations = {
     projectNameLabel: 'שם הפרויקט כפי שמופיע באישור ועדה מקומית',
     projectNamePlaceholder: 'הזן את שם הפרויקט',
     projectNameRequired: 'שם הפרויקט הוא שדה חובה',
-    projectPrice: 'סכום הפרויקט הכולל',
-    projectPricePlaceholder: 'הזן את הסכום הכולל של הפרויקט',
-    projectPriceHelp: 'זהו הסכום הכולל של הפרויקט. לאחר מכן תתבקשו להזין את הסכום של כל חשבונית בנפרד.',
     requiredField: 'שדה חובה',
     invalidEmail: 'כתובת אימייל לא תקינה',
     invalidPhone: 'מספר טלפון לא תקין',
-    invalidPrice: 'סכום לא תקין',
     requirement1: 'הצעת מחיר אחת נדרשת',
     requirement2: 'שתי הצעות מחיר נדרשות',
     requirement3: '4 הצעות מחיר ומסמך מכרז נדרשים',
@@ -46,13 +42,9 @@ const translations = {
     projectNameLabel: 'Project name as written in Local Committee Approval',
     projectNamePlaceholder: 'Enter the project name',
     projectNameRequired: 'Project name is required',
-    projectPrice: 'Total Project Cost',
-    projectPricePlaceholder: 'Enter the total project cost',
-    projectPriceHelp: 'This is the total cost of the project. You will be asked to enter the amount for each invoice separately.',
     requiredField: 'Required field',
     invalidEmail: 'Invalid email address',
     invalidPhone: 'Invalid phone number',
-    invalidPrice: 'Invalid amount',
     requirement1: 'One price proposal required',
     requirement2: 'Two price proposals required',
     requirement3: '4 price proposals and tender document required',
@@ -73,13 +65,11 @@ export default function UploadPage() {
   const [submitterEmail, setSubmitterEmail] = useState<string>('');
   const [submitterPhone, setSubmitterPhone] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
-  const [totalProjectCost, setTotalProjectCost] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
     projectName?: string;
-    price?: string;
   }>({});
 
   const handleCommitteeApprovalUploaded = (file: File) => {
@@ -122,7 +112,6 @@ export default function UploadPage() {
     setSubmitterEmail('');
     setSubmitterPhone('');
     setProjectName('');
-    setTotalProjectCost('');
     setFormErrors({});
   };
 
@@ -132,7 +121,7 @@ export default function UploadPage() {
   };
 
   const validateContactInfo = () => {
-    const errors: { name?: string; email?: string; phone?: string; projectName?: string; price?: string } = {};
+    const errors: { name?: string; email?: string; phone?: string; projectName?: string } = {};
     
     if (!submitterName.trim()) {
       errors.name = t.requiredField;
@@ -152,15 +141,6 @@ export default function UploadPage() {
 
     if (!projectName.trim()) {
       errors.projectName = t.projectNameRequired;
-    }
-
-    if (!totalProjectCost.trim()) {
-      errors.price = t.requiredField;
-    } else {
-      const price = parseFloat(totalProjectCost);
-      if (isNaN(price) || price <= 0) {
-        errors.price = t.invalidPrice;
-      }
     }
     
     setFormErrors(errors);
@@ -335,56 +315,16 @@ export default function UploadPage() {
                           : 'Enter the project name exactly as it appears in the Local Committee Approval document'}
                       </p>
                     </div>
-
-                    {/* Total Project Cost */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        {t.projectPrice} <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={totalProjectCost}
-                          onChange={(e) => {
-                            setTotalProjectCost(e.target.value);
-                            if (formErrors.price) {
-                              setFormErrors({ ...formErrors, price: undefined });
-                            }
-                          }}
-                          placeholder={t.projectPricePlaceholder}
-                          className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
-                            formErrors.price
-                              ? 'border-red-500 focus:border-red-500'
-                              : 'border-gray-300 focus:border-gray-900'
-                          } ${language === 'he' ? 'pe-10' : 'ps-10'}`}
-                          dir="ltr"
-                        />
-                        <span className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${language === 'he' ? 'right-4' : 'left-4'}`}>
-                          ₪
-                        </span>
-                      </div>
-                      {formErrors.price && (
-                        <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>
-                      )}
-                      {!formErrors.price && totalProjectCost && (
-                        <p className="mt-2 text-sm text-gray-600">
-                          {t.projectPriceHelp}
-                        </p>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Local Committee Approval Upload - only show if village is selected and all contact info including price is valid */}
-            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectName.trim() && totalProjectCost.trim() && !formErrors.price && (
+            {/* Local Committee Approval Upload - only show if village is selected and all contact info is valid */}
+            {selectedVillage && submitterName.trim() && submitterEmail.trim() && submitterPhone.trim() && projectName.trim() && (
               <LocalCommitteeApproval 
                 onApprovalUploaded={handleCommitteeApprovalUploaded}
                 onBack={handleBackFromCommitteeApproval}
-                totalProjectCost={parseFloat(totalProjectCost)}
               />
             )}
           </div>
@@ -408,7 +348,6 @@ export default function UploadPage() {
         {currentStep === 'proposals' && (
           <ProposalUpload 
             committeeApprovalFile={committeeApprovalFile!}
-            totalProjectCost={parseFloat(totalProjectCost)}
             invoices={invoicesWithPrices}
             selectedVillage={selectedVillage}
             projectName={projectName}

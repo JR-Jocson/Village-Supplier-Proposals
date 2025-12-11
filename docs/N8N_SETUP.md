@@ -107,3 +107,184 @@ console.log('N8N_AUTH_HEADER:', process.env.N8N_AUTH_HEADER);
 - ✅ File validation happens before sending to n8n
 - ✅ File size limited to 10MB in frontend
 
+---
+
+## PostgreSQL Node Setup
+
+This section explains how to configure the PostgreSQL node in n8n to connect to your Supabase database.
+
+### Step 1: Get Database Credentials from Supabase
+
+1. Go to your Supabase Dashboard:
+   - **URL:** https://app.supabase.com/project/qtjnbtvtuivzikeiufua/settings/database
+
+2. Scroll down to the **"Connection string"** section
+
+3. You have two options:
+
+   **Option A: Connection Pooler (Recommended for n8n)**
+   - Select **"Connection pooling"** tab
+   - Choose **"Transaction"** mode
+   - Copy the connection string
+   - Format: `postgresql://postgres.qtjnbtvtuivzikeiufua:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true`
+   - **Port:** `6543`
+   - **Host:** `aws-0-eu-central-1.pooler.supabase.com`
+
+   **Option B: Direct Connection**
+   - Select **"Direct connection"** tab
+   - Copy the connection string
+   - Format: `postgresql://postgres:[PASSWORD]@db.qtjnbtvtuivzikeiufua.supabase.co:5432/postgres`
+   - **Port:** `5432`
+   - **Host:** `db.qtjnbtvtuivzikeiufua.supabase.co`
+
+4. **Get your database password:**
+   - If you don't remember it, click **"Reset Database Password"** button
+   - Copy the new password immediately (you won't be able to see it again!)
+
+### Step 2: Configure PostgreSQL Node in n8n
+
+1. **Open your n8n workflow** (or create a new one)
+
+2. **Add PostgreSQL node:**
+   - Click the **"+"** button to add a node
+   - Search for **"PostgreSQL"**
+   - Select **"PostgreSQL"** node
+
+3. **Configure the connection:**
+   - Click on the PostgreSQL node
+   - In the **"Credential"** dropdown, select **"Create New Credential"** (or edit existing)
+
+4. **Fill in the connection details:**
+
+   **For Connection Pooler (Recommended):**
+   ```
+   Host: aws-0-eu-central-1.pooler.supabase.com
+   Port: 6543
+   Database: postgres
+   User: postgres.qtjnbtvtuivzikeiufua
+   Password: [YOUR_DATABASE_PASSWORD]
+   SSL: Enable SSL/TLS
+   ```
+
+   **For Direct Connection:**
+   ```
+   Host: db.qtjnbtvtuivzikeiufua.supabase.co
+   Port: 5432
+   Database: postgres
+   User: postgres
+   Password: [YOUR_DATABASE_PASSWORD]
+   SSL: Enable SSL/TLS
+   ```
+
+5. **SSL Configuration:**
+   - **SSL Mode:** Select **"require"** or **"prefer"**
+   - Supabase requires SSL connections for security
+
+6. **Save the credential:**
+   - Give it a name like: `Supabase PostgreSQL - Village Supplier Proposals`
+   - Click **"Save"**
+
+### Step 3: Test the Connection
+
+1. **In the PostgreSQL node**, select **"Execute Query"** operation
+
+2. **Test query:**
+   ```sql
+   SELECT version();
+   ```
+
+3. **Click "Execute Node"** or **"Test workflow"**
+
+4. **Expected result:**
+   ```json
+   {
+     "version": "PostgreSQL 17.6.1..."
+   }
+   ```
+
+### Step 4: Query Your Tables
+
+Once connected, you can query your database tables:
+
+**Example: Get all proposals:**
+```sql
+SELECT * FROM "Proposal" ORDER BY "createdAt" DESC LIMIT 10;
+```
+
+**Example: Get all users:**
+```sql
+SELECT * FROM "User" ORDER BY "createdAt" DESC;
+```
+
+**Example: Count proposals by status:**
+```sql
+SELECT status, COUNT(*) as count 
+FROM "Proposal" 
+GROUP BY status;
+```
+
+### Connection Details Summary
+
+**Supabase Project:** Village Supplier Proposals  
+**Project ID:** `qtjnbtvtuivzikeiufua`  
+**Region:** EU Central (Frankfurt) - `eu-central-1`
+
+**Connection Pooler (Recommended):**
+- **Host:** `aws-0-eu-central-1.pooler.supabase.com`
+- **Port:** `6543`
+- **Database:** `postgres`
+- **User:** `postgres.qtjnbtvtuivzikeiufua`
+- **SSL:** Required
+
+**Direct Connection:**
+- **Host:** `db.qtjnbtvtuivzikeiufua.supabase.co`
+- **Port:** `5432`
+- **Database:** `postgres`
+- **User:** `postgres`
+- **SSL:** Required
+
+### Troubleshooting PostgreSQL Connection
+
+**Issue: Connection timeout**
+- ✅ Check if you're using the correct host and port
+- ✅ Verify your database password is correct
+- ✅ Ensure SSL is enabled
+
+**Issue: Authentication failed**
+- ✅ Verify the username format (pooler uses `postgres.qtjnbtvtuivzikeiufua`, direct uses `postgres`)
+- ✅ Reset your database password in Supabase dashboard
+- ✅ Check that the password doesn't contain special characters that need URL encoding
+
+**Issue: SSL connection error**
+- ✅ Enable SSL/TLS in n8n PostgreSQL node settings
+- ✅ Try SSL mode "require" or "prefer"
+
+**Issue: Table not found**
+- ✅ Remember that Prisma uses quoted table names (e.g., `"Proposal"` not `proposal`)
+- ✅ Check table names in Supabase dashboard: https://app.supabase.com/project/qtjnbtvtuivzikeiufua/editor
+
+### Best Practices
+
+1. **Use Connection Pooler** for n8n workflows (better performance, handles connections better)
+2. **Store credentials securely** - Use n8n's credential system, don't hardcode passwords
+3. **Use parameterized queries** - Prevent SQL injection attacks
+4. **Test queries first** - Use "Execute Query" to test before using in production workflows
+5. **Monitor connection limits** - Supabase has connection limits based on your plan
+
+### Example n8n Workflow with PostgreSQL
+
+**Workflow: Get Proposal Details**
+
+1. **Webhook node** - Receives proposal ID
+2. **PostgreSQL node** - Query:
+   ```sql
+   SELECT * FROM "Proposal" WHERE id = $1;
+   ```
+   - Parameter: `{{ $json.body.proposalId }}`
+3. **IF node** - Check if proposal exists
+4. **PostgreSQL node** - Get related user:
+   ```sql
+   SELECT * FROM "User" WHERE id = $1;
+   ```
+5. **Return response** with proposal and user data
+

@@ -17,7 +17,6 @@ const translations = {
     onlyPdf: 'רק קבצי PDF מותרים',
     removeFile: 'הסר',
     pleaseSelect: 'נא לבחור קובץ אישור ועדה מקומית',
-    projectAmount: 'סכום הפרויקט:',
     nextSteps: 'השלבים הבאים:',
     willNeed: 'תצטרכו להעלות:',
     invoices: 'חשבוניות מס',
@@ -35,7 +34,6 @@ const translations = {
     onlyPdf: 'Only PDF files are allowed',
     removeFile: 'Remove',
     pleaseSelect: 'Please select a local committee approval file',
-    projectAmount: 'Project Amount:',
     nextSteps: 'Next Steps:',
     willNeed: 'You will need to upload:',
     invoices: 'Tax Invoices',
@@ -45,13 +43,11 @@ const translations = {
 interface LocalCommitteeApprovalProps {
   onApprovalUploaded: (file: File) => void;
   onBack: () => void;
-  totalProjectCost: number;
 }
 
 export default function LocalCommitteeApproval({ 
   onApprovalUploaded,
   onBack,
-  totalProjectCost,
 }: LocalCommitteeApprovalProps) {
   const { language } = useLanguage();
   const t = translations[language];
@@ -129,14 +125,6 @@ export default function LocalCommitteeApproval({
         <p className="text-lg text-gray-600 mb-6">
           {t.subtitle}
         </p>
-
-        {/* Total Project Cost Badge */}
-        <div className="inline-flex items-center gap-3 bg-gray-900 text-white px-6 py-3 rounded-full">
-          <span className="text-sm font-medium">{t.projectAmount}</span>
-          <span className="text-xl font-bold">
-            ₪{totalProjectCost.toLocaleString(language === 'he' ? 'he-IL' : 'en-US')}
-          </span>
-        </div>
       </div>
 
       {/* Upload Area */}

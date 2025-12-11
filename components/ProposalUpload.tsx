@@ -71,7 +71,6 @@ interface InvoiceData {
 
 interface ProposalUploadProps {
   committeeApprovalFile: File;
-  totalProjectCost: number;
   invoices: InvoiceData[];
   selectedVillage: string;
   projectName: string;
@@ -95,7 +94,6 @@ function getInvoiceRequirements(price: number) {
 
 export default function ProposalUpload({ 
   committeeApprovalFile,
-  totalProjectCost,
   invoices,
   selectedVillage,
   projectName,
@@ -184,7 +182,6 @@ export default function ProposalUpload({
       formData.append('submitterName', submitterName);
       formData.append('submitterEmail', submitterEmail);
       formData.append('submitterPhone', submitterPhone);
-      formData.append('totalProjectCost', totalProjectCost.toString());
       
       // Add additional notes if provided
       if (additionalNotes.trim()) {

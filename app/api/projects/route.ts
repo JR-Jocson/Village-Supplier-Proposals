@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const submitterEmail = formData.get('submitterEmail') as string;
     const submitterPhone = formData.get('submitterPhone') as string;
     const additionalNotes = formData.get('additionalNotes') as string | null;
+    // totalProjectCost is optional - no longer required from form
     const totalProjectCost = formData.get('totalProjectCost') ? parseFloat(formData.get('totalProjectCost') as string) : null;
     // Keep invoicePrice for backward compatibility (deprecated)
     const invoicePrice = formData.get('invoicePrice') ? parseFloat(formData.get('invoicePrice') as string) : null;
