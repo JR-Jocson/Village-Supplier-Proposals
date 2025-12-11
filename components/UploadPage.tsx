@@ -19,7 +19,7 @@ const translations = {
     submitterPhone: 'טלפון השולח',
     submitterPhonePlaceholder: 'הזן את מספר הטלפון',
     projectName: 'שם הפרויקט',
-    projectNameLabel: 'שם הפרויקט כפי שמופיע באישור ועדה מקומית',
+    projectNameLabel: 'שם הפרויקט כפי שמופיע באישור ועד מקומי',
     projectNamePlaceholder: 'הזן את שם הפרויקט',
     projectNameRequired: 'שם הפרויקט הוא שדה חובה',
     requiredField: 'שדה חובה',
@@ -311,7 +311,7 @@ export default function UploadPage() {
                       )}
                       <p className="mt-2 text-sm text-gray-500">
                         {language === 'he' 
-                          ? 'יש להזין את שם הפרויקט בדיוק כפי שהוא מופיע במסמך אישור הוועדה המקומית'
+                          ? 'יש להזין את שם הפרויקט בדיוק כפי שהוא מופיע במסמך אישור הועד המקומי'
                           : 'Enter the project name exactly as it appears in the Local Committee Approval document'}
                       </p>
                     </div>

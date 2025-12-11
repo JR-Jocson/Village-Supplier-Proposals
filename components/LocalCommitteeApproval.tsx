@@ -5,8 +5,8 @@ import { useLanguage } from './LanguageProvider';
 
 const translations = {
   he: {
-    title: 'העלאת אישור ועדה מקומית',
-    subtitle: 'העלו את אישור הועדה המקומית כדי להתחיל',
+    title: 'העלאת אישור ועד מקומי',
+    subtitle: 'העלו את אישור הועד המקומי כדי להתחיל',
     dropzone: 'גררו קובץ לכאן או לחצו לבחירה',
     fileTypes: 'PDF עד 10MB',
     uploading: 'מעלה קובץ...',
@@ -16,7 +16,7 @@ const translations = {
     selected: 'קובץ נבחר:',
     onlyPdf: 'רק קבצי PDF מותרים',
     removeFile: 'הסר',
-    pleaseSelect: 'נא לבחור קובץ אישור ועדה מקומית',
+    pleaseSelect: 'נא לבחור קובץ אישור ועד מקומי',
     nextSteps: 'השלבים הבאים:',
     willNeed: 'תצטרכו להעלות:',
     invoices: 'חשבוניות מס',

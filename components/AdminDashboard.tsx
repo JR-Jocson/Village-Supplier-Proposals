@@ -26,7 +26,7 @@ const translations = {
     recentProjects: 'פרויקטים חדשים (7 ימים)',
     
     // Approvals
-    laApproval: 'אישור ועדה מקומית',
+    laApproval: 'אישור ועד מקומי',
     avivaApproval: 'אישור אביבה',
     
     // Projects table
