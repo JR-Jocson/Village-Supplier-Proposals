@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const submitterEmail = formData.get('submitterEmail') as string;
     const submitterPhone = formData.get('submitterPhone') as string;
     const additionalNotes = formData.get('additionalNotes') as string | null;
-    // totalProjectCost is optional - no longer required from form
+    // totalProjectCost is now populated by n8n from documents, not required from form
     const totalProjectCost = formData.get('totalProjectCost') ? parseFloat(formData.get('totalProjectCost') as string) : null;
     // Keep invoicePrice for backward compatibility (deprecated)
     const invoicePrice = formData.get('invoicePrice') ? parseFloat(formData.get('invoicePrice') as string) : null;
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         submitterEmail,
         submitterPhone,
         additionalNotes: additionalNotes || null,
-        totalProjectCost: totalProjectCost || invoicePrice, // Use totalProjectCost if available, fallback to invoicePrice for backward compatibility
+        totalProjectCost: totalProjectCost || invoicePrice, // Will be populated by n8n from documents if not provided (fallback to invoicePrice for backward compatibility)
         invoicePrice: finalInvoicePrice, // Fill invoicePrice with totalProjectCost (kept for backward compatibility)
         laApproval,
         avivaApproval,
